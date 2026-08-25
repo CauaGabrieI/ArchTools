@@ -36,6 +36,16 @@ Cada entrypoint reutiliza os módulos de `hardware/`, `drivers/`, `desktop/`, `p
 
 Ferramentas que alteram o sistema aceitam `--dry-run`, `--yes`, `--verbose` e `--help`; a ordem é sempre detectar, planejar, mostrar, confirmar, executar e validar. Ferramentas de detecção não modificam o sistema.
 
+Também é possível usar o CLI unificado:
+
+```bash
+./archtools hardware detect
+./archtools diagnostics run
+./archtools drivers detect
+./archtools drivers install --dry-run
+./archtools profile desktop --dry-run
+```
+
 ## Fluxo completo
 
 ```bash

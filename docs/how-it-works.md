@@ -24,7 +24,12 @@ Validar o resultado
 Salvar estado e apresentar relatório
 ```
 
-`install.sh` é somente o ponto de entrada. Ele carrega `lib/core.sh`, que interpreta os argumentos, inicializa log e estado, e coordena o fluxo. A lógica fica separada nos diretórios `hardware`, `drivers`, `desktop`, `profiles`, `services` e `lib`.
+`install.sh` continua sendo o ponto de entrada do fluxo completo. O executável
+`archtools` oferece subcomandos independentes e carrega o mesmo `lib/core.sh` e
+`lib/api.sh`; os wrappers em `tools/` mantêm compatibilidade para uso direto.
+Assim, a lógica continua separada nos diretórios `hardware`, `drivers`,
+`desktop`, `profiles`, `services` e `lib`, sem um caminho de ferramenta chamar
+`install.sh`.
 
 ## 1. Entrada e argumentos
 
@@ -103,6 +108,7 @@ O estado independente do diretório do projeto fica em:
 ├── existing-packages.txt
 ├── modified-files.txt
 ├── services.txt
+├── runs.tsv
 ├── last-run
 └── backups/
 ```

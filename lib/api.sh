@@ -7,6 +7,8 @@ archtools_reset_plan() {
 archtools_detect_module() {
   case "$1" in
     hardware) detect_all ;;
+    drivers) detect_cpu; detect_gpu ;;
+    diagnostics) detect_all ;;
     cpu) detect_cpu; detect_virtualization; HARDWARE[arch]=$(uname -m);;
     gpu) detect_gpu ;;
     storage) detect_storage ;;
@@ -37,6 +39,8 @@ archtools_show_module() {
     audio) printf '\nÁudio\n  Pilha atual: %s\n' "${HARDWARE[audio]:-desconhecida}" ;;
     desktop) printf '\nDesktop\n  Atual: %s\n' "${HARDWARE[desktop]:-desconhecido}" ;;
     gaming) printf '\nGaming\n  GPU: %s\n' "${HARDWARE[gpus]:-não detectada}" ;;
+    drivers) printf '\nDrivers\n  CPU: %s (%s)\n  GPU(s): %s\n' "${HARDWARE[cpu_vendor]:-desconhecido}" "${HARDWARE[cpu_microcode]:-nenhum}" "${HARDWARE[gpus]:-não detectada}" ;;
+    diagnostics) printf '\nDiagnóstico\n'; for command_name in bash pacman sudo systemctl lspci lsblk findmnt; do if command -v "$command_name" >/dev/null 2>&1; then printf '  %s: disponível\n' "$command_name"; else printf '  %s: ausente\n' "$command_name"; fi; done ;;
   esac
 }
 
@@ -46,6 +50,7 @@ archtools_build_module_plan() {
   case "$module" in
     cpu) plan_firmware; [[ ${HARDWARE[cpu_microcode]:-} != none ]] && plan_package "${HARDWARE[cpu_microcode]}" ;;
     gpu) [[ ${HARDWARE[gpu_amd]:-0} == 1 ]] && plan_amd_driver; [[ ${HARDWARE[gpu_intel]:-0} == 1 ]] && plan_intel_driver; [[ ${HARDWARE[gpu_nvidia]:-0} == 1 ]] && plan_nvidia_driver ;;
+    drivers) driver_packages ;;
     storage) [[ ${HARDWARE[trim]:-0} == 1 ]] && add_service fstrim.timer ;;
     network) network_plan ;;
     bluetooth) bluetooth_plan ;;
@@ -53,6 +58,7 @@ archtools_build_module_plan() {
     desktop) [[ $choice =~ ^(gnome|kde|xfce|cinnamon|hyprland|minimal)$ ]] || die "Desktop inválido: $choice"; "desktop_$choice" ;;
     gaming) PROFILE=gaming; profile_gaming; driver_packages ;;
     hardware) return 0 ;;
+    diagnostics) return 0 ;;
     *) die "Ferramenta desconhecida: $module" ;;
   esac
   PLAN_NOTES+=("Somente alterações deste módulo serão executadas.")
@@ -69,6 +75,46 @@ archtools_tool_usage() {
   printf 'Uso: ./tools/%s.sh [opções]\n  --dry-run  --yes  --verbose  --help\n' "$1"
 }
 
+archtools_usage() {
+  cat <<'EOF'
+Uso: ./archtools <comando> [subcomando] [opções]
+
+Comandos:
+  install [opções]                 Executa o fluxo completo existente
+  hardware detect [opções]         Detecta e mostra hardware
+  diagnostics run [opções]         Verifica ambiente e mostra diagnóstico
+  drivers detect                   Detecta CPU/GPU para drivers
+  drivers install [opções]         Planeja e instala drivers após confirmação
+  profile <nome> [opções]          Executa um perfil existente
+
+Opções: --dry-run  --yes  --verbose  --help
+EOF
+}
+
+archtools_cli_main() {
+  local command_name=${1:-help} subcommand profile_name
+  shift || true
+  case "$command_name" in
+    install) main "$@" ;;
+    hardware|diagnostics|drivers)
+      subcommand=${1:-}
+      [[ -n $subcommand ]] && shift
+      case "$command_name:$subcommand" in
+        hardware:detect) archtools_tool_main hardware "$@" ;;
+        diagnostics:run) archtools_tool_main diagnostics "$@" ;;
+        drivers:detect) DETECT_ONLY=1 archtools_tool_main drivers "$@" ;;
+        drivers:install) archtools_tool_main drivers "$@" ;;
+        *) die "Uso inválido para '$command_name'. Use ./archtools --help." ;;
+      esac
+      ;;
+    profile)
+      profile_name=${1:-}; [[ -n $profile_name ]] || die "Perfil ausente. Use minimal, desktop ou gaming."
+      shift; main --profile "$profile_name" "$@" ;;
+    help|-h|--help) archtools_usage ;;
+    *) die "Comando inválido: $command_name. Use ./archtools --help." ;;
+  esac
+}
+
 archtools_tool_main() {
   local module=$1 choice=""; shift
   if [[ $module == desktop ]]; then choice=${1:-}; shift || true; fi
@@ -82,8 +128,9 @@ archtools_tool_main() {
   init_logger
   require_supported_system
   archtools_detect_module "$module"
-  archtools_show_module "$module"
   [[ $module == hardware ]] && return 0
+  archtools_show_module "$module"
+  [[ $module == diagnostics || ${DETECT_ONLY:-0} == 1 ]] && return 0
   archtools_build_module_plan "$module" "$choice"
   archtools_show_module_plan "$module"
   (( DRY_RUN )) && { log INFO "Dry-run concluído: nenhuma alteração foi feita nem estado persistente criado."; return 0; }
