@@ -11,8 +11,15 @@ install_packages() {
     else missing+=("$p"); fi
   done
   ((${#missing[@]})) || return 0
-  log INFO "Instalando: ${missing[*]}"; sudo pacman -S --needed "${missing[@]}"
-  for p in "${missing[@]}"; do is_package_installed "$p" && state_add_unique "$STATE_DIR/installed-packages.txt" "$p"; done
+  log INFO "Instalando: ${missing[*]}"; sudo pacman -S --needed "${missing[@]}" || return 1
+  for p in "${missing[@]}"; do
+    if is_package_installed "$p"; then
+      state_add_unique "$STATE_DIR/installed-packages.txt" "$p"
+      if [[ ${TRANSACTION_STATUS:-} == active ]] && declare -F record_change >/dev/null 2>&1; then
+        record_change packages package "$p" absent installed yes
+      fi
+    fi
+  done
 }
 remove_package() {
   local p=$1 tmp
