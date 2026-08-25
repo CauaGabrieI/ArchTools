@@ -1,352 +1,39 @@
 # ArchTools
 
-> **Suíte modular de ferramentas para configuração, administração e manutenção do Arch Linux.**
+<p align="center">
+  <strong>Uma suíte modular de ferramentas para configurar, administrar e manter o Arch Linux.</strong>
+</p>
 
-ArchTools é um conjunto de ferramentas modulares para facilitar a **configuração, instalação de componentes, manutenção, diagnóstico e gerenciamento de sistemas Arch Linux**.
+<p align="center">
+  <a href="https://github.com/CauaGabrieI/ArchTools">
+    <img src="https://img.shields.io/badge/platform-Arch%20Linux-1793D1?logo=arch-linux&logoColor=white" alt="Platform">
+  </a>
+  <a href="https://github.com/CauaGabrieI/ArchTools/blob/main/LICENSE">
+    <img src="https://img.shields.io/github/license/CauaGabrieI/ArchTools" alt="License">
+  </a>
+  <a href="https://github.com/CauaGabrieI/ArchTools">
+    <img src="https://img.shields.io/github/stars/CauaGabrieI/ArchTools?style=flat" alt="Stars">
+  </a>
+  <a href="https://github.com/CauaGabrieI/ArchTools/commits/main">
+    <img src="https://img.shields.io/github/last-commit/CauaGabrieI/ArchTools" alt="Last commit">
+  </a>
+</p>
 
-O projeto foi desenvolvido com foco em **modularidade, segurança, reutilização e controle sobre as alterações realizadas no sistema**.
-
-Em vez de depender de um único script gigante, cada funcionalidade é separada em módulos que podem ser utilizados individualmente ou combinados através da CLI.
-
----
-
-## ✨ Principais recursos
-
-* 🧩 Arquitetura modular
-* 🖥️ Suporte a diferentes ambientes desktop
-* 🎮 Perfil para gaming
-* 🔍 Detecção de hardware
-* 🎮 Detecção e configuração de GPUs
-* 📦 Gerenciamento de pacotes
-* ⚙️ Gerenciamento de serviços
-* 🧠 Sistema de planejamento de operações
-* 🔄 Sistema de transações
-* 💾 Backup e gerenciamento de estado
-* ↩️ Rollback de alterações
-* 🧪 Testes automatizados
-* 🛡️ Validação antes da execução
-* 🧾 Logs e registro das operações
-* 🧪 Modo `dry-run`
-* 🔎 Modo de detecção sem alterações
-* 📋 Listagem das alterações realizadas
-
-> **Nota:** o projeto está em desenvolvimento e deve ser testado em uma máquina virtual antes de ser utilizado em um sistema de produção.
+<p align="center">
+  <a href="#-instalação">Instalação</a> •
+  <a href="#-uso">Uso</a> •
+  <a href="#-visão-geral">Visão geral</a> •
+  <a href="#-recursos">Recursos</a> •
+  <a href="#-arquitetura">Arquitetura</a> •
+  <a href="#-testes">Testes</a> •
+  <a href="#-roadmap">Roadmap</a>
+</p>
 
 ---
 
-# 🧱 Arquitetura
+# 🚀 Instalação
 
-O ArchTools foi projetado para separar as responsabilidades do sistema.
-
-```text
-ArchTools
-│
-├── hardware/       # Detecção de hardware
-├── drivers/        # Drivers e firmware
-├── desktop/        # Ambientes gráficos
-├── services/       # Serviços do sistema
-├── profiles/       # Perfis de configuração
-├── lib/            # Núcleo do sistema
-├── tests/           # Testes
-├── docs/            # Documentação
-└── install.sh      # Interface principal
-```
-
-O núcleo fornece componentes reutilizáveis para os módulos:
-
-```text
-                    ArchTools
-                        │
-                ┌───────┴───────┐
-                │      Core      │
-                └───────┬───────┘
-                        │
-        ┌───────────────┼───────────────┐
-        │               │               │
-     Detect          Planner         Modules
-        │               │               │
-        └───────────────┼───────────────┘
-                        │
-                    Executor
-                        │
-                   Transaction
-                        │
-             ┌──────────┴──────────┐
-             │                     │
-           State                 Logs
-             │
-        Backup / Rollback
-```
-
-A ideia é que os módulos não precisem implementar novamente toda a lógica de execução, validação, logging ou controle de estado.
-
----
-
-# 🖥️ Ambientes desktop
-
-Atualmente existem módulos para:
-
-* GNOME
-* KDE
-* XFCE
-* Cinnamon
-* Hyprland
-* Minimal
-
-Exemplo:
-
-```bash
-./install.sh --desktop gnome
-```
-
----
-
-# 🎯 Perfis
-
-O projeto possui perfis que agrupam configurações e componentes relacionados.
-
-### Minimal
-
-Instalação/configuração mínima.
-
-### Desktop
-
-Configuração voltada para uso geral em desktop.
-
-### Gaming
-
-Configuração voltada para jogos e componentes relacionados.
-
-Exemplo:
-
-```bash
-./install.sh --desktop gnome --profile gaming
-```
-
----
-
-# 🔍 Detecção de hardware
-
-O ArchTools possui módulos para detectar diferentes componentes do sistema.
-
-Atualmente:
-
-* CPU
-* GPU
-* memória
-* armazenamento
-* rede
-* Wi-Fi
-* Bluetooth
-* áudio
-* monitor
-* boot
-* virtualização
-* laptop/notebook
-
-A detecção pode ser executada sem realizar alterações no sistema.
-
-```bash
-./install.sh --detect-only
-```
-
----
-
-# 🎮 Drivers
-
-O projeto possui módulos específicos para:
-
-* AMD
-* Intel
-* NVIDIA
-* Wi-Fi
-* Bluetooth
-* Firmware
-
-A intenção é permitir que o sistema detecte o hardware primeiro e utilize essa informação para planejar as alterações necessárias.
-
----
-
-# ⚙️ Serviços
-
-Existem módulos para gerenciamento de serviços como:
-
-* áudio
-* Bluetooth
-* rede
-* display manager
-* impressão
-* TRIM
-
-Isso mantém a configuração de serviços separada dos demais componentes do sistema.
-
----
-
-# 📦 Gerenciamento de pacotes
-
-O ArchTools utiliza o gerenciador de pacotes do Arch Linux e possui uma camada própria para planejamento e controle das operações.
-
-O sistema procura evitar instalações desnecessárias utilizando operações apropriadas do `pacman`.
-
-As operações também podem ser registradas para permitir auditoria e recuperação.
-
----
-
-# 🧠 Planejamento
-
-Antes de realizar alterações, o ArchTools possui uma camada de planejamento.
-
-O objetivo é separar:
-
-```text
-DETECT
-  ↓
-PLAN
-  ↓
-VALIDATE
-  ↓
-EXECUTE
-```
-
-Isso permite que uma operação seja analisada antes de modificar o sistema.
-
-Por exemplo:
-
-```bash
-./install.sh --desktop gnome --profile gaming --dry-run
-```
-
-O modo `dry-run` permite visualizar o que seria realizado sem executar as alterações.
-
----
-
-# 🔄 Transações
-
-As alterações podem ser organizadas através do sistema de transações do ArchTools.
-
-A ideia é evitar uma sequência descontrolada de comandos:
-
-```text
-comando 1
-comando 2
-comando 3
-erro
-```
-
-Em vez disso:
-
-```text
-Planejar
-   ↓
-Validar
-   ↓
-Iniciar transação
-   ↓
-Executar
-   ↓
-Registrar
-   ↓
-Verificar
-```
-
-Isso também fornece uma base para recuperação de operações que falharam.
-
----
-
-# 💾 Estado e backup
-
-O ArchTools mantém informações sobre as operações realizadas pelo projeto.
-
-O estado é armazenado em:
-
-```text
-~/.local/state/arch-smart-postinstall/
-```
-
-Essas informações são utilizadas para acompanhar alterações feitas pelo ArchTools.
-
-O projeto também possui mecanismos de backup e recuperação.
-
----
-
-# ↩️ Rollback
-
-O sistema possui suporte para rollback das alterações registradas.
-
-Exemplo:
-
-```bash
-./install.sh --rollback
-```
-
-O objetivo é permitir que alterações realizadas pelo ArchTools possam ser revertidas quando suportado pelo módulo envolvido.
-
-> Rollback não significa que qualquer alteração feita no sistema poderá ser revertida automaticamente. O comportamento depende da operação e do módulo responsável.
-
----
-
-# 🗑️ Desinstalação
-
-O projeto possui suporte para remoção dos componentes que foram registrados como instalados pelo ArchTools.
-
-```bash
-./install.sh --uninstall
-```
-
-O objetivo é evitar que o ArchTools remova indiscriminadamente componentes que já existiam antes da execução.
-
----
-
-# 📋 Auditoria e alterações
-
-É possível consultar as alterações registradas pelo projeto:
-
-```bash
-./install.sh --list-changes
-```
-
-Isso permite verificar o que foi alterado antes de realizar operações de recuperação ou remoção.
-
----
-
-# 🧪 Testes
-
-O projeto possui uma suíte de testes para componentes do núcleo e módulos.
-
-Exemplos:
-
-```text
-tests/
-├── test_backup.sh
-├── test_cli.sh
-├── test_cpu.sh
-├── test_dry_run.sh
-├── test_gpu.sh
-├── test_modules.sh
-├── test_network.sh
-├── test_packages.sh
-├── test_preflight.sh
-├── test_storage.sh
-├── test_tools.sh
-├── test_transaction.sh
-├── test_transaction_integration.sh
-└── test_transaction_lifecycle.sh
-```
-
-Também existem:
-
-```text
-tests/fixtures/
-tests/mock-bin/
-```
-
-que permitem testar determinados comportamentos sem depender diretamente de uma máquina física.
-
----
-
-# 🚀 Uso
-
-Clone o projeto:
+Clone o repositório:
 
 ```bash
 git clone https://github.com/CauaGabrieI/ArchTools.git
@@ -365,41 +52,59 @@ Execute:
 ./install.sh
 ```
 
+> **Recomendação:** teste o ArchTools primeiro em uma máquina virtual ou instalação Arch Linux de testes antes de utilizá-lo no sistema principal.
+
 ---
 
-## 🔎 Detectar o sistema
+# 💻 Uso
+
+## Ajuda
+
+```bash
+./install.sh --help
+```
+
+## Detectar hardware
+
+Executa a detecção sem realizar a instalação/configuração:
 
 ```bash
 ./install.sh --detect-only
 ```
 
----
+## Simular uma operação
 
-## 🧪 Simular uma instalação
+Use `--dry-run` para visualizar o que seria executado:
 
 ```bash
 ./install.sh --desktop gnome --profile gaming --dry-run
 ```
 
----
+## Configurar um desktop
 
-## 📋 Ver alterações
+```bash
+./install.sh --desktop gnome --profile desktop
+```
+
+## Configurar um perfil de gaming
+
+```bash
+./install.sh --profile gaming
+```
+
+## Listar alterações
 
 ```bash
 ./install.sh --list-changes
 ```
 
----
-
-## ↩️ Fazer rollback
+## Rollback
 
 ```bash
 ./install.sh --rollback
 ```
 
----
-
-## 🗑️ Desinstalar componentes registrados
+## Desinstalar componentes registrados
 
 ```bash
 ./install.sh --uninstall
@@ -407,85 +112,329 @@ Execute:
 
 ---
 
-# 🛡️ Segurança
+## 📋 Referência rápida da CLI
 
-O ArchTools foi projetado para evitar operações destrutivas desnecessárias.
+| Comando/opção      | Função                         |
+| ------------------ | ------------------------------ |
+| `./install.sh`     | Executa o fluxo principal      |
+| `--help`           | Exibe a ajuda                  |
+| `--detect-only`    | Detecta o sistema sem instalar |
+| `--dry-run`        | Simula a operação              |
+| `--desktop <nome>` | Seleciona o ambiente desktop   |
+| `--profile <nome>` | Seleciona o perfil             |
+| `--list-changes`   | Lista alterações registradas   |
+| `--rollback`       | Reverte alterações suportadas  |
+| `--uninstall`      | Remove componentes registrados |
 
-O projeto atualmente **não tem como objetivo**:
+### Exemplos
 
-* particionar discos automaticamente;
-* formatar discos;
-* apagar partições;
-* substituir o bootloader;
-* reiniciar o sistema automaticamente.
+```bash
+# Detectar o hardware
+./install.sh --detect-only
 
-Operações que podem alterar o sistema devem ser tratadas de maneira controlada e, sempre que possível, passar por:
+# Simular configuração GNOME + Gaming
+./install.sh --desktop gnome --profile gaming --dry-run
 
-```text
-detecção
-   ↓
-planejamento
-   ↓
-validação
-   ↓
-execução
-   ↓
-registro
+# Aplicar configuração GNOME + Gaming
+./install.sh --desktop gnome --profile gaming
+
+# Ver alterações
+./install.sh --list-changes
+
+# Reverter alterações suportadas
+./install.sh --rollback
 ```
 
-Mesmo assim, **sempre revise o que será executado antes de utilizar o projeto em uma máquina importante**.
+---
+
+# 🧭 Visão geral
+
+**ArchTools** é uma suíte modular de ferramentas para **Arch Linux**.
+
+O projeto busca facilitar tarefas que normalmente exigem vários scripts, comandos e configurações manuais, mantendo cada funcionalidade separada e reutilizável.
+
+Em vez de criar um único script gigante, o ArchTools organiza suas funcionalidades em módulos:
+
+```text
+Hardware
+   │
+Drivers
+   │
+Desktop
+   │
+Services
+   │
+Profiles
+   │
+Packages
+   │
+   ▼
+   Core
+   │
+   ├── Planner
+   ├── Executor
+   ├── Transactions
+   ├── State
+   ├── Backup
+   ├── Rollback
+   └── Logger
+```
+
+A ideia central é:
+
+> **Ferramentas pequenas, independentes e combináveis.**
 
 ---
 
-# 🧪 Status do projeto
+# ✨ Recursos
 
-**Estado:** desenvolvimento / pré-produção.
+## 🧩 Arquitetura modular
 
-A arquitetura principal já está estabelecida, mas o projeto ainda está passando por testes em ambientes reais e máquinas virtuais.
+Funcionalidades são separadas por responsabilidade:
 
-O objetivo atual é:
+```text
+hardware/
+drivers/
+desktop/
+services/
+profiles/
+lib/
+tests/
+```
 
-1. validar os módulos existentes;
-2. corrigir problemas encontrados;
-3. melhorar a confiabilidade;
-4. ampliar a cobertura de testes;
-5. somente depois adicionar novas funcionalidades importantes.
-
----
-
-# 🗺️ Roadmap
-
-O ArchTools está sendo desenvolvido de forma incremental.
-
-Possíveis evoluções futuras:
-
-* Snapshot de configuração
-* Diff entre estados
-* Estado desejado
-* Aplicação de configurações
-* Verificação pós-execução
-* `doctor`
-* `repair`
-* Auditoria avançada
-* Configuração declarativa
-* Exportação/importação de configurações
-* Gerenciamento de dotfiles
-* Módulos externos
-* Sistema de plugins
-* Interface TUI
-
-Essas funcionalidades fazem parte da visão futura do projeto e **não devem ser consideradas implementadas até que estejam oficialmente incorporadas e testadas**.
+Isso facilita manutenção, testes e expansão do projeto.
 
 ---
 
-# 📁 Estrutura do projeto
+## 🔍 Detecção de hardware
+
+Módulos para identificar componentes do sistema:
+
+* CPU
+* GPU
+* memória
+* armazenamento
+* rede
+* Wi-Fi
+* Bluetooth
+* áudio
+* monitor
+* boot
+* virtualização
+* laptop/notebook
+
+---
+
+## 🎮 Drivers
+
+Suporte modular para:
+
+* AMD
+* Intel
+* NVIDIA
+* Wi-Fi
+* Bluetooth
+* Firmware
+
+---
+
+## 🖥️ Ambientes desktop
+
+Módulos disponíveis para:
+
+* GNOME
+* KDE
+* XFCE
+* Cinnamon
+* Hyprland
+* Minimal
+
+---
+
+## 🎯 Perfis
+
+Configurações agrupadas por objetivo:
+
+| Perfil    | Objetivo                         |
+| --------- | -------------------------------- |
+| `minimal` | Sistema mínimo                   |
+| `desktop` | Uso geral                        |
+| `gaming`  | Jogos e componentes relacionados |
+
+Exemplo:
+
+```bash
+./install.sh --desktop gnome --profile gaming
+```
+
+---
+
+## ⚙️ Serviços
+
+Módulos para serviços comuns:
+
+* Áudio
+* Bluetooth
+* Rede
+* Display Manager
+* Impressão
+* TRIM
+
+---
+
+## 📦 Gerenciamento de pacotes
+
+O ArchTools possui uma camada para planejamento e controle de pacotes utilizando o ecossistema do Arch Linux.
+
+O objetivo é evitar operações desnecessárias e manter registro das alterações realizadas.
+
+---
+
+## 🧠 Planner
+
+As operações passam por uma etapa de planejamento:
+
+```text
+┌──────────────┐
+│   Detect     │
+└──────┬───────┘
+       ↓
+┌──────────────┐
+│    Plan      │
+└──────┬───────┘
+       ↓
+┌──────────────┐
+│   Validate   │
+└──────┬───────┘
+       ↓
+┌──────────────┐
+│   Execute    │
+└──────────────┘
+```
+
+---
+
+## 🧪 Dry-run
+
+Permite analisar uma operação sem aplicá-la:
+
+```bash
+./install.sh --desktop gnome --profile gaming --dry-run
+```
+
+---
+
+## 🔄 Transactions
+
+Operações podem ser organizadas através de um sistema de transações:
+
+```text
+Request
+   ↓
+Detect
+   ↓
+Plan
+   ↓
+Validate
+   ↓
+Transaction
+   ↓
+Execute
+   ↓
+Record
+```
+
+---
+
+## 💾 State
+
+O ArchTools mantém informações sobre operações realizadas pelo projeto.
+
+Estado:
+
+```text
+~/.local/state/arch-smart-postinstall/
+```
+
+Essas informações são utilizadas pelos mecanismos de auditoria, backup e rollback.
+
+---
+
+## 💾 Backup
+
+O projeto possui mecanismos para registrar e preservar informações necessárias para recuperação das alterações suportadas.
+
+---
+
+## ↩️ Rollback
+
+Alterações registradas podem ser revertidas quando suportadas pela operação:
+
+```bash
+./install.sh --rollback
+```
+
+---
+
+## 📋 Auditoria
+
+Consulte as alterações registradas:
+
+```bash
+./install.sh --list-changes
+```
+
+---
+
+# 🏗️ Arquitetura
+
+O ArchTools é dividido em duas camadas principais:
+
+```text
+                    ┌───────────────────────┐
+                    │       install.sh      │
+                    │      CLI / Entry      │
+                    └───────────┬───────────┘
+                                │
+                                ▼
+                    ┌───────────────────────┐
+                    │         CORE          │
+                    │                       │
+                    │ CLI / API             │
+                    │ Planner               │
+                    │ Executor              │
+                    │ Transactions          │
+                    │ State                 │
+                    │ Backup                │
+                    │ Rollback              │
+                    │ Logger                │
+                    │ Validator             │
+                    └───────────┬───────────┘
+                                │
+              ┌─────────────────┼─────────────────┐
+              │                 │                 │
+              ▼                 ▼                 ▼
+       ┌────────────┐    ┌────────────┐    ┌────────────┐
+       │  Hardware  │    │  Drivers   │    │  Desktop   │
+       └────────────┘    └────────────┘    └────────────┘
+              │                 │                 │
+              └─────────────────┼─────────────────┘
+                                │
+              ┌─────────────────┼─────────────────┐
+              │                 │                 │
+              ▼                 ▼                 ▼
+       ┌────────────┐    ┌────────────┐    ┌────────────┐
+       │  Services  │    │  Profiles  │    │  Packages  │
+       └────────────┘    └────────────┘    └────────────┘
+```
+
+## 📁 Estrutura
 
 ```text
 ArchTools/
+│
 ├── desktop/
-├── docs/
 ├── drivers/
-├── examples/
 ├── hardware/
 ├── lib/
 ├── profiles/
@@ -493,59 +442,239 @@ ArchTools/
 ├── tests/
 │   ├── fixtures/
 │   └── mock-bin/
-├── .gitignore
+├── docs/
+├── examples/
+├── install.sh
 ├── CHANGELOG.md
-├── LICENSE
-├── README.md
 ├── VERSION
-└── install.sh
+└── LICENSE
 ```
 
 ---
 
-# 🤝 Contribuição
+# 🧪 Testes
+
+O projeto possui testes para componentes como:
+
+* CLI
+* CPU
+* GPU
+* Network
+* Storage
+* Packages
+* Modules
+* Backup
+* Preflight
+* Dry-run
+* Transactions
+
+Também existem testes de integração e ciclo de vida das transações.
+
+```text
+tests/
+├── fixtures/
+├── mock-bin/
+├── test_backup.sh
+├── test_cli.sh
+├── test_cpu.sh
+├── test_dry_run.sh
+├── test_gpu.sh
+├── test_modules.sh
+├── test_network.sh
+├── test_packages.sh
+├── test_preflight.sh
+├── test_storage.sh
+├── test_tools.sh
+├── test_transaction.sh
+├── test_transaction_integration.sh
+└── test_transaction_lifecycle.sh
+```
+
+> Antes de considerar uma versão pronta para produção, o projeto deve ser validado em uma instalação Arch Linux limpa, preferencialmente em uma máquina virtual.
+
+---
+
+# 🛡️ Segurança
+
+O ArchTools foi projetado para minimizar operações destrutivas.
+
+Atualmente, o projeto não tem como objetivo:
+
+```text
+❌ Particionar discos automaticamente
+❌ Formatar discos
+❌ Apagar partições
+❌ Substituir o bootloader
+❌ Reiniciar o sistema automaticamente
+```
+
+O fluxo esperado é:
+
+```text
+┌───────────┐
+│  Detect   │
+└─────┬─────┘
+      ↓
+┌───────────┐
+│   Plan    │
+└─────┬─────┘
+      ↓
+┌───────────┐
+│ Validate  │
+└─────┬─────┘
+      ↓
+┌───────────┐
+│  Execute  │
+└─────┬─────┘
+      ↓
+┌───────────┐
+│   State   │
+└───────────┘
+```
+
+Mesmo assim, **sempre revise operações antes de executá-las em um sistema importante**.
+
+---
+
+# 🧪 Status
+
+> **Development / Pre-production**
+
+O ArchTools possui uma arquitetura funcional e uma suíte inicial de testes, mas ainda está em fase de validação.
+
+Objetivo atual:
+
+```text
+Testar
+  ↓
+Encontrar problemas
+  ↓
+Corrigir
+  ↓
+Testar novamente
+  ↓
+Estabilizar
+```
+
+Novas funcionalidades maiores serão adicionadas depois que a base atual estiver suficientemente validada.
+
+---
+
+# 🗺️ Roadmap
+
+## Core
+
+* [x] CLI
+* [x] Planner
+* [x] Executor
+* [x] State
+* [x] Logger
+* [x] Transactions
+* [x] Backup
+* [x] Rollback
+* [x] Validation
+* [x] Dry-run
+* [ ] API de módulos totalmente padronizada
+* [ ] Dependências entre módulos
+* [ ] Sistema de conflitos
+
+## Configuração
+
+* [ ] Snapshots
+* [ ] Diff de estados
+* [ ] Estado desejado
+* [ ] Apply declarativo
+* [ ] Verify pós-execução
+* [ ] Export/import de configurações
+* [ ] Dotfiles
+
+## Manutenção
+
+* [ ] `doctor`
+* [ ] `repair`
+* [ ] `update`
+* [ ] `cleanup`
+* [ ] `optimize`
+* [ ] Auditoria avançada
+
+## Ecossistema
+
+* [ ] Módulos externos
+* [ ] Catálogo de módulos
+* [ ] Versionamento de módulos
+* [ ] Sistema de plugins
+* [ ] TUI
+
+---
+
+# 🎯 Filosofia do projeto
+
+ArchTools não pretende ser apenas um instalador.
+
+A visão é criar uma **suíte de ferramentas modulares para todo o ciclo de vida de um sistema Arch Linux**.
+
+```text
+                  ARCH LINUX
+                      │
+                      ▼
+                 ┌──────────┐
+                 │ ArchTools│
+                 └────┬─────┘
+                      │
+       ┌──────────────┼──────────────┐
+       ▼              ▼              ▼
+   Configure       Maintain       Diagnose
+       │              │              │
+       ▼              ▼              ▼
+   Hardware        Updates         Doctor
+   Drivers         Cleanup         Repair
+   Desktop         Services        Audit
+   Packages        System
+       │
+       └──────────────┬──────────────┘
+                      ▼
+                 Recover / Rollback
+```
+
+Cada ferramenta deve ter uma responsabilidade clara.
+
+Cada módulo deve poder ser reutilizado.
+
+E operações maiores devem ser construídas **combinando módulos existentes**, em vez de duplicar lógica.
+
+---
+
+# 🤝 Contribuindo
 
 Contribuições são bem-vindas.
 
-Antes de criar um novo módulo, procure manter a arquitetura modular existente.
+Ao criar ou modificar um módulo:
 
-Um módulo deve, sempre que possível:
-
-* possuir uma responsabilidade clara;
-* evitar duplicação de lógica do Core;
-* ser seguro para execução repetida;
-* utilizar as APIs existentes;
-* possuir testes;
-* registrar adequadamente suas alterações;
-* evitar operações destrutivas sem necessidade.
+* mantenha uma responsabilidade clara;
+* evite duplicar funcionalidades do Core;
+* prefira operações idempotentes;
+* valide entradas;
+* registre alterações importantes;
+* adicione testes;
+* evite operações destrutivas;
+* mantenha a documentação atualizada.
 
 ---
 
 # 📜 Licença
 
-Este projeto é distribuído sob os termos definidos no arquivo [`LICENSE`](LICENSE).
+Consulte [`LICENSE`](LICENSE) para os termos da licença do projeto.
 
 ---
 
-## 🎯 Filosofia
+# 🔗 Links
 
-ArchTools não pretende ser apenas um instalador.
+**Repositório:**
+https://github.com/CauaGabrieI/ArchTools
 
-A visão do projeto é criar uma **caixa de ferramentas modular para Arch Linux**, onde cada ferramenta possa ser utilizada individualmente e várias ferramentas possam ser combinadas para realizar tarefas maiores.
+---
 
-```text
-        Ferramentas independentes
-                  │
-                  ↓
-             Core comum
-                  │
-        ┌─────────┴─────────┐
-        ↓                   ↓
-   Configuração          Manutenção
-        │                   │
-        └─────────┬─────────┘
-                  ↓
-              Arch Linux
-```
-
-**Modular. Controlável. Reutilizável.**
+<p align="center">
+  <strong>ArchTools</strong><br>
+  Modular tools for Arch Linux.
+</p>
