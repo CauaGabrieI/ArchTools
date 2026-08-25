@@ -36,7 +36,7 @@ TRANSACTION_ID=''; TRANSACTION_STATUS=''; TRANSACTION_MODULE=''
 PLAN_PACKAGES=(failed)
 SUDO_FAIL=1
 if execute_plan; then exit 1; fi
-[[ $TRANSACTION_STATUS == aborted ]]
+[[ $TRANSACTION_STATUS == rolled_back ]]
 ! grep -q $'\tchange\tpackage\tfailed\t' "$STATE_DIR/transactions/$TRANSACTION_ID.tsv"
 SUDO_FAIL=0
 
@@ -66,7 +66,7 @@ TRANSACTION_ID=''; TRANSACTION_STATUS=''; TRANSACTION_MODULE=''
 PLAN_SERVICES_ENABLE=(failed.service)
 systemctl() { printf 'disabled\n'; return 1; }
 if execute_plan; then exit 1; fi
-[[ $TRANSACTION_STATUS == aborted ]]
+[[ $TRANSACTION_STATUS == rolled_back ]]
 ! grep -q $'\tchange\tservice\tfailed.service\t' "$STATE_DIR/transactions/$TRANSACTION_ID.tsv"
 
 TRANSACTION_ID=''; TRANSACTION_STATUS=''; TRANSACTION_MODULE=''

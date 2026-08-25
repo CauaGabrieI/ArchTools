@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 
 archtools_reset_plan() {
-  PLAN_PACKAGES=(); PLAN_SERVICES_ENABLE=(); PLAN_SERVICES_DISABLE=(); PLAN_NOTES=(); PLAN_FILES=()
+  PLAN_PACKAGES=(); PLAN_OPTIONAL_PACKAGES=(); PLAN_SERVICES_ENABLE=(); PLAN_SERVICES_CONFIGURED=(); PLAN_SERVICES_DISABLE=(); PLAN_NOTES=(); PLAN_FILES=()
 }
 
 archtools_detect_module() {
   case "$1" in
     hardware) detect_all ;;
-    drivers) detect_cpu; detect_gpu ;;
+    drivers) detect_cpu; detect_gpu; detect_virtualization ;;
     diagnostics) detect_all ;;
     cpu) detect_cpu; detect_virtualization; HARDWARE[arch]=$(uname -m);;
     gpu) detect_gpu ;;
@@ -66,7 +66,11 @@ archtools_build_module_plan() {
 
 archtools_show_module_plan() {
   printf '\nPlano da ferramenta: %s\n' "$1"
-  ((${#PLAN_PACKAGES[@]})) && printf '  Pacotes: %s\n' "${PLAN_PACKAGES[*]}" || printf '  Pacotes: nenhum\n'
+  ((${#PLAN_PACKAGES_INSTALLED[@]})) && printf '  Já instalados: %s\n' "${PLAN_PACKAGES_INSTALLED[*]}"
+  ((${#PLAN_PACKAGES_AVAILABLE[@]})) && printf '  Disponíveis: %s\n' "${PLAN_PACKAGES_AVAILABLE[*]}"
+  ((${#PLAN_PACKAGES_UNAVAILABLE[@]})) && printf '  Indisponíveis: %s\n' "${PLAN_PACKAGES_UNAVAILABLE[*]}"
+  ((${#PLAN_PACKAGES_OPTIONAL_SKIPPED[@]})) && printf '  Opcionais ignorados: %s\n' "${PLAN_PACKAGES_OPTIONAL_SKIPPED[*]}"
+  ((${#PLAN_PACKAGES[@]})) || printf '  Pacotes: nenhum\n'
   ((${#PLAN_SERVICES_ENABLE[@]})) && printf '  Serviços: %s\n' "${PLAN_SERVICES_ENABLE[*]}" || printf '  Serviços: nenhum\n'
   printf '  Garantias: nenhum disco, bootloader, AUR, reboot ou ajuste agressivo será alterado.\n'
 }
@@ -138,15 +142,21 @@ archtools_tool_main() {
       *) die "Opção inválida: $1. Use --help.";;
     esac
   done
+  if [[ $module == hardware || $module == diagnostics || ${DETECT_ONLY:-0} == 1 ]]; then READ_ONLY_ACTION=1; fi
   init_logger
   require_supported_system
   archtools_detect_module "$module"
-  [[ $module == hardware ]] && return 0
   archtools_show_module "$module"
-  [[ $module == diagnostics || ${DETECT_ONLY:-0} == 1 ]] && return 0
+  [[ $module == hardware || $module == diagnostics || ${DETECT_ONLY:-0} == 1 ]] && return 0
   archtools_build_module_plan "$module" "$choice"
+  local plan_status=0
+  validate_plan_pre_execution || plan_status=$?
   archtools_show_module_plan "$module"
+  (( plan_status == 0 )) || { log ERROR "Plano inválido; nenhuma alteração foi executada."; trap - ERR; return "$plan_status"; }
   (( DRY_RUN )) && { log INFO "Dry-run concluído: nenhuma alteração foi feita nem estado persistente criado."; return 0; }
   confirm_plan || { log INFO "Cancelado pelo usuário."; return 0; }
-  init_state; execute_plan; validate_plan; save_tool_run "$module"
+  begin_transaction "$module"
+  if ! execute_plan; then transaction_abort_and_rollback "falha durante a execução do módulo"; return 1; fi
+  if ! validate_plan; then transaction_abort_and_rollback "falha na validação final do módulo"; return 1; fi
+  commit_transaction
 }

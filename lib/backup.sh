@@ -12,4 +12,7 @@ backup_file() {
   if [[ $operation == modified ]]; then cp -a -- "$target" "$backup"; else : > "$backup.created"; fi
   printf '%s\t%s\t%s\t%s\t%s\t%s\n' "$absolute" "$backup" "$hash" "$(date -Is)" "$module" "$operation" >> "$manifest"
   state_add_unique "$STATE_DIR/modified-files.txt" "$absolute"
+  if [[ ${TRANSACTION_STATUS:-} == active ]] && declare -F record_change >/dev/null 2>&1; then
+    record_change "$module" file "$absolute" "$backup" "$operation" yes
+  fi
 }

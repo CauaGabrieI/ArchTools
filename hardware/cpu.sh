@@ -1,9 +1,12 @@
 #!/usr/bin/env bash
 detect_cpu() {
-  local data vendor
-  data=$(lscpu 2>/dev/null || true); vendor=$(awk -F: '/Vendor ID:/ {gsub(/^[[:space:]]+/,"",$2);print $2;exit}' <<<"$data")
+  local data vendor cpuinfo=${CPUINFO_FILE:-/proc/cpuinfo}
+  data=$(LC_ALL=C lscpu 2>/dev/null || true)
+  vendor=$(awk -F: '/Vendor ID:/ {gsub(/^[[:space:]]+/,"",$2);print $2;exit}' <<<"$data")
+  [[ -n $vendor ]] || vendor=$(awk -F: '$1 ~ /^[[:space:]]*vendor_id[[:space:]]*$/ {gsub(/^[[:space:]]+/,"",$2); print $2; exit}' "$cpuinfo" 2>/dev/null || true)
   case "$vendor" in AuthenticAMD) HARDWARE[cpu_vendor]=AMD;; GenuineIntel) HARDWARE[cpu_vendor]=INTEL;; *) HARDWARE[cpu_vendor]=OTHER;; esac
   HARDWARE[cpu_model]=$(awk -F: '/Model name:/ {gsub(/^[[:space:]]+/,"",$2);print $2;exit}' <<<"$data")
+  [[ -n ${HARDWARE[cpu_model]} ]] || HARDWARE[cpu_model]=$(awk -F: '$1 ~ /^[[:space:]]*model name[[:space:]]*$/ {sub(/^[^:]*:[[:space:]]*/,""); print; exit}' "$cpuinfo" 2>/dev/null || true)
   local cores_per_socket sockets
   HARDWARE[cpu_threads]=$(awk -F: '/^CPU\(s\):/ {gsub(/^[[:space:]]+/,"",$2);print $2;exit}' <<<"$data")
   cores_per_socket=$(awk -F: '/Core\(s\) per socket:/ {gsub(/^[[:space:]]+/,"",$2);print $2;exit}' <<<"$data")

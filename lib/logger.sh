@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 init_logger() {
-  if (( DRY_RUN )); then LOG_FILE=""; return; fi
+  if (( DRY_RUN || READ_ONLY_ACTION )) || [[ ${ACTION:-} == detect-only ]]; then LOG_FILE=""; return; fi
+  LOG_FILE="$LOG_DIR/install-$RUN_ID.log"
   mkdir -p "$LOG_DIR"; touch "$LOG_FILE"
 }
 log() { local level=$1; shift; if [[ -n ${LOG_FILE:-} ]]; then printf '[%s] [%s] %s\n' "$(date '+%F %T')" "$level" "$*" | tee -a "$LOG_FILE"; else printf '[%s] [%s] %s\n' "$(date '+%F %T')" "$level" "$*"; fi; }

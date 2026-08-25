@@ -7,7 +7,7 @@ trap 'rm -rf "$state"' EXIT
 common_env=(PATH="$root/tests/mock-bin:$PATH" XDG_STATE_HOME="$state" OS_RELEASE_FILE="$root/tests/fixtures/os-release-arch")
 normal=$(env "${common_env[@]}" "$root/archtools" preflight)
 verbose=$(env "${common_env[@]}" "$root/archtools" preflight --verbose)
-[[ $normal == *'Preflight: OK'* ]]
+[[ $normal == *'Preflight: OK'* && $normal == *'sudo instalado, mas execução não-interativa indisponível'* ]]
 [[ $verbose == *'caminho:'* && $verbose == *'nenhum pacote, serviço ou arquivo será alterado'* ]]
 [[ ! -e "$state/arch-smart-postinstall" ]]
 

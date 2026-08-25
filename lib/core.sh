@@ -6,17 +6,23 @@ APP_NAME="Arch Linux Smart Post-Install"
 APP_ID="arch-smart-postinstall"
 STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/$APP_ID"
 LOG_DIR="$PROJECT_DIR/logs"
-RUN_ID=$(date +%F_%H-%M-%S)
-LOG_FILE="$LOG_DIR/install-$RUN_ID.log"
-DRY_RUN=0; VERBOSE=0; NO_REBOOT=0; ASSUME_YES=0
+RUN_ID=$(date +%F_%H-%M-%S-%N)
+LOG_FILE=""
+DRY_RUN=0; VERBOSE=0; NO_REBOOT=0; ASSUME_YES=0; READ_ONLY_ACTION=0
 DESKTOP=""; PROFILE=""; ACTION="install"
-declare -a PLAN_PACKAGES=() PLAN_SERVICES_ENABLE=() PLAN_SERVICES_DISABLE=() PLAN_NOTES=() PLAN_FILES=()
+declare -a PLAN_PACKAGES=() PLAN_OPTIONAL_PACKAGES=() PLAN_SERVICES_ENABLE=() PLAN_SERVICES_CONFIGURED=() PLAN_SERVICES_DISABLE=() PLAN_NOTES=() PLAN_FILES=()
 declare -A HARDWARE=()
 
 on_error() {
   local code=$? line=$1 cmd=$2
+  trap - ERR
+  if [[ ${TRANSACTION_STATUS:-} == active ]]; then
+    abort_transaction "erro inesperado na linha $line" || true
+    rollback_transaction || true
+  fi
+  release_state_lock || true
   log ERROR "Module: ${BASH_SOURCE[1]#$PROJECT_DIR/}; Line: $line; Command: $cmd; exit: $code"
-  printf '\n[ERROR] Falha na linha %s. Consulte: %s\n' "$line" "$LOG_FILE" >&2
+  printf '\n[ERROR] Falha na linha %s%s\n' "$line" "${LOG_FILE:+. Consulte: $LOG_FILE}" >&2
   exit "$code"
 }
 trap 'on_error "$LINENO" "$BASH_COMMAND"' ERR
@@ -48,11 +54,15 @@ require_supported_system() {
 main() {
   parse_cli "$@"
   [[ $ACTION == help ]] && { usage; return; }
+  if [[ $ACTION == list-changes ]]; then
+    LOG_FILE=""
+    [[ -d $STATE_DIR ]] && list_changes || printf 'Nenhum estado persistente encontrado.\n'
+    return
+  fi
   init_logger
   case "$ACTION" in
     rollback) init_state; rollback_run ;;
     uninstall) init_state; uninstall_run ;;
-    list-changes) init_state; list_changes ;;
     *) require_supported_system; run_install_flow ;;
   esac
 }
@@ -60,15 +70,19 @@ main() {
 run_install_flow() {
   banner
   archtools_detect_module hardware
-  [[ $ACTION == detect-only ]] && { show_hardware; return; }
+  show_hardware
+  [[ $ACTION == detect-only ]] && return
   select_interactively_if_needed
   build_plan "$DESKTOP" "$PROFILE"
+  local plan_status=0
+  validate_plan_pre_execution || plan_status=$?
   show_plan
+  (( plan_status == 0 )) || { log ERROR "Plano inválido; nenhuma alteração foi executada."; trap - ERR; return "$plan_status"; }
   if (( DRY_RUN )); then log INFO "Dry-run concluído: nenhuma alteração foi feita nem arquivo persistente criado."; return; fi
   confirm_plan || { log INFO "Cancelado pelo usuário."; return; }
-  init_state
-  execute_plan
-  validate_plan
-  save_last_run "$DESKTOP" "$PROFILE"
+  begin_transaction install
+  if ! execute_plan; then transaction_abort_and_rollback "falha durante a execução"; return 1; fi
+  if ! validate_plan; then transaction_abort_and_rollback "falha na validação final"; return 1; fi
+  commit_transaction
   show_report
 }

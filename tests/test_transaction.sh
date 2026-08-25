@@ -8,6 +8,8 @@ STATE_DIR="$state/arch-smart-postinstall"
 RUN_ID=run-transaction-test
 DRY_RUN=0
 source "$root/lib/transaction.sh"
+is_package_installed() { return 1; }
+sudo() { return 0; }
 
 begin_transaction gpu
 first_id=$TRANSACTION_ID
@@ -28,7 +30,7 @@ second_id=$TRANSACTION_ID
 record_change audio package pipewire absent installed yes
 rollback_transaction
 [[ $TRANSACTION_STATUS == rolled_back ]]
-grep -q $'\trollback\tphysical\trollback\tnot_implemented\tmetadata_only\tyes$' "$STATE_DIR/transactions/$second_id.tsv"
+grep -q $'\trollback\tpackage\tpipewire\tinstalled\tabsent\tyes$' "$STATE_DIR/transactions/$second_id.tsv"
 
 begin_transaction network
 third_id=$TRANSACTION_ID
@@ -43,7 +45,7 @@ if rollback_transaction; then exit 1; fi
 
 begin_transaction storage
 fourth_id=$TRANSACTION_ID
-record_change storage package fstrim.timer absent enabled yes
+record_change storage package fstrim.timer absent installed yes
 abort_transaction "cancelado"
 rollback_transaction
 [[ $TRANSACTION_STATUS == rolled_back && $fourth_id != "$third_id" ]]

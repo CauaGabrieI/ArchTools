@@ -47,6 +47,16 @@ preflight_run() {
     preflight_check_command "$command_name" no || true
   done
 
+  if command -v sudo >/dev/null 2>&1; then
+    if sudo -n true >/dev/null 2>&1; then
+      printf '[OK] sudo não-interativo: disponível\n'
+    elif sudo -n -v >/dev/null 2>&1; then
+      printf '[OK] sudo: credencial em cache; execução não-interativa disponível\n'
+    else
+      printf '[WARN] sudo instalado, mas execução não-interativa indisponível; uma senha/TTY será necessária\n'
+    fi
+  fi
+
   if [[ -d $PROJECT_DIR && -r $PROJECT_DIR ]]; then
     printf '[OK] diretório do projeto: %s\n' "$PROJECT_DIR"
   else

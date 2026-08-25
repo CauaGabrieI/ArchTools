@@ -5,7 +5,6 @@ detect_all() {
   info "Detectando hardware (somente leitura)..."
   detect_cpu; detect_gpu; detect_memory; detect_storage; detect_network; detect_wifi; detect_bluetooth
   detect_machine; detect_monitors; detect_virtualization; detect_boot; detect_audio; detect_display_manager; detect_system
-  show_hardware
 }
 detect_display_manager() {
   local dm

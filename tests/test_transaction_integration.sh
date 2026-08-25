@@ -36,9 +36,9 @@ commit_transaction
 begin_transaction packages
 install_packages already
 ! grep -q $'\tchange\tpackage\talready\t' "$STATE_DIR/transactions/$TRANSACTION_ID.tsv"
-install_packages missing
+  if install_packages missing; then exit 1; fi
 ! grep -q $'\tchange\tpackage\tmissing\t' "$STATE_DIR/transactions/$TRANSACTION_ID.tsv"
-abort_transaction "sem alterações"
+  abort_transaction "pacote indisponível"
 
 begin_transaction packages
 SUDO_FAIL=1
