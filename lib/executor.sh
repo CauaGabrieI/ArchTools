@@ -1,8 +1,25 @@
 #!/usr/bin/env bash
 execute_plan() {
+  local owns_transaction=0
+  if [[ ${TRANSACTION_STATUS:-} != active ]] && declare -F begin_transaction >/dev/null 2>&1; then
+    begin_transaction "${TRANSACTION_MODULE:-install}" || return 1
+    owns_transaction=1
+  fi
   log INFO 'Executando plano confirmado.'
-  install_packages "${PLAN_PACKAGES[@]}"
-  local service; for service in "${PLAN_SERVICES_ENABLE[@]}"; do enable_service_safe "$service"; done
+  if ! install_packages "${PLAN_PACKAGES[@]}"; then
+    (( owns_transaction )) && abort_transaction "falha na instalação de pacotes"
+    return 1
+  fi
+  local service
+  for service in "${PLAN_SERVICES_ENABLE[@]}"; do
+    if ! enable_service_safe "$service"; then
+      (( owns_transaction )) && abort_transaction "falha ao habilitar serviço $service"
+      return 1
+    fi
+  done
+  if (( owns_transaction )); then
+    commit_transaction || return 1
+  fi
 }
 enable_service_safe() {
   local s=$1 old; old=$(systemctl is-enabled "$s" 2>/dev/null || true)
