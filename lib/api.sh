@@ -81,6 +81,8 @@ Uso: ./archtools <comando> [subcomando] [opções]
 
 Comandos:
   install [opções]                 Executa o fluxo completo existente
+  module list                      Lista módulos registrados
+  module info <nome>               Mostra metadados de um módulo
   hardware detect [opções]         Detecta e mostra hardware
   diagnostics run [opções]         Verifica ambiente e mostra diagnóstico
   drivers detect                   Detecta CPU/GPU para drivers
@@ -110,6 +112,15 @@ archtools_cli_main() {
     profile)
       profile_name=${1:-}; [[ -n $profile_name ]] || die "Perfil ausente. Use minimal, desktop ou gaming."
       shift; main --profile "$profile_name" "$@" ;;
+    module)
+      subcommand=${1:-}; [[ -n $subcommand ]] || die "Subcomando module ausente. Use list ou info."
+      shift
+      case "$subcommand" in
+        list) (($# == 0)) || die "module list não aceita argumentos."; module_list ;;
+        info) [[ $# == 1 ]] || die "Uso: ./archtools module info <nome>"; module_info "$1" ;;
+        *) die "Subcomando module inválido: $subcommand" ;;
+      esac
+      ;;
     help|-h|--help) archtools_usage ;;
     *) die "Comando inválido: $command_name. Use ./archtools --help." ;;
   esac

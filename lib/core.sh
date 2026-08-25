@@ -23,7 +23,7 @@ trap 'on_error "$LINENO" "$BASH_COMMAND"' ERR
 
 load_modules() {
   local module
-  for module in logger state detect packages backup rollback planner executor validator ui cli api; do
+  for module in logger state detect packages backup rollback planner executor validator ui cli modules api; do
     # shellcheck source=/dev/null
     source "$PROJECT_DIR/lib/$module.sh"
   done
@@ -31,6 +31,7 @@ load_modules() {
     # shellcheck source=/dev/null
     source "$module"
   done
+  module_registry_init
 }
 
 require_supported_system() {
