@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+# Read-only test guard: return inactive/disabled for every query and reject mutations.
+case "${1:-}" in
+  is-active|is-enabled|--user) exit 1 ;;
+  *) printf 'test guard: systemctl mutation must not be called\n' >&2; exit 99 ;;
+esac

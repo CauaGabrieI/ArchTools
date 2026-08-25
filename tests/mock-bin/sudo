@@ -1,0 +1,3 @@
+#!/usr/bin/env bash
+printf 'test guard: sudo must not be called\n' >&2
+exit 99

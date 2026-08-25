@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+case "$1" in
+  -Q) exit 1 ;;
+  -Si) exit 0 ;;
+  *) exit 0 ;;
+esac

@@ -1,0 +1,25 @@
+# Checklist de validação em VM Arch Linux
+
+- [ ] Arch Linux detectado corretamente
+- [ ] CPU detectada
+- [ ] GPU detectada
+- [ ] RAM detectada
+- [ ] armazenamento detectado
+- [ ] rede detectada
+- [ ] Bluetooth detectado corretamente
+- [ ] desktop detectado
+- [ ] VM detectada
+- [ ] dry-run não modifica estado persistente
+- [ ] plano correto
+- [ ] confirmação funciona
+- [ ] pacotes instalados corretamente
+- [ ] serviços habilitados corretamente
+- [ ] validação funciona
+- [ ] estado salvo corretamente
+- [ ] backup funciona
+- [ ] rollback funciona
+- [ ] uninstall funciona
+- [ ] segundo run é idempotente
+- [ ] falha de pacote é tratada
+- [ ] falha de serviço é tratada
+- [ ] GPU desconhecida não instala driver incorreto

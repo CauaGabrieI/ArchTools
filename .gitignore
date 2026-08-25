@@ -1,0 +1,28 @@
+# Runtime state, backups and logs
+logs/*.log
+backups/
+state/
+.local/
+
+# Temporary test and editor files
+tmp/
+temp/
+*.tmp
+*.swp
+*~
+
+# Local environment and credentials
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+
+# Virtual machine artifacts
+*.qcow2
+*.vdi
+*.vmdk
+*.ova
+*.ovf
