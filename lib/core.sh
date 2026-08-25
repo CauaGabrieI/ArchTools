@@ -23,7 +23,7 @@ trap 'on_error "$LINENO" "$BASH_COMMAND"' ERR
 
 load_modules() {
   local module
-  for module in logger state detect packages backup rollback planner executor validator ui cli; do
+  for module in logger state detect packages backup rollback planner executor validator ui cli api; do
     # shellcheck source=/dev/null
     source "$PROJECT_DIR/lib/$module.sh"
   done
@@ -58,7 +58,7 @@ main() {
 
 run_install_flow() {
   banner
-  detect_all
+  archtools_detect_module hardware
   [[ $ACTION == detect-only ]] && { show_hardware; return; }
   select_interactively_if_needed
   build_plan "$DESKTOP" "$PROFILE"

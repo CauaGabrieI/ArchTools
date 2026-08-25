@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-init_state() { mkdir -p "$STATE_DIR/backups"; touch "$STATE_DIR"/{installed-packages.txt,existing-packages.txt,modified-files.txt,services.txt}; touch "$STATE_DIR/backups/manifest.tsv"; }
+init_state() { mkdir -p "$STATE_DIR/backups"; touch "$STATE_DIR"/{installed-packages.txt,existing-packages.txt,modified-files.txt,services.txt,runs.tsv}; touch "$STATE_DIR/backups/manifest.tsv"; }
+save_tool_run() { printf '%s\t%s\t%s\t%s\n' "$RUN_ID" "$1" "$(date -Is)" "${LOG_FILE:-}" >> "$STATE_DIR/runs.tsv"; }
 state_add_unique() { local file=$1 value=$2; grep -Fqx -- "$value" "$file" 2>/dev/null || printf '%s\n' "$value" >> "$file"; }
 save_last_run() { printf 'date=%s\ndesktop=%s\nprofile=%s\nlog=%s\n' "$(date -Is)" "$1" "$2" "$LOG_FILE" > "$STATE_DIR/last-run"; write_state_json; }
 write_state_json() { printf '{\n  "application": "%s",\n  "last_run": "%s"\n}\n' "$APP_ID" "$(date -Is)" > "$STATE_DIR/state.json"; }

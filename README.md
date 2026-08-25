@@ -1,12 +1,13 @@
-# Arch Linux Smart Post-Install
+# ArchTools
 
-Pós-instalador modular para Arch Linux. Ele detecta hardware, monta um plano, pede confirmação e só então executa. Não é um instalador do Arch: nunca particiona, formata, altera bootloader, aplica tuning agressivo ou reinicia o computador.
+A modular toolkit for detecting, configuring and managing Arch Linux systems.
+ArchTools detecta hardware, monta planos explícitos e só executa alterações após confirmação. Não é um instalador do Arch: nunca particiona, formata, altera bootloader/EFI, instala AUR automaticamente, aplica tuning agressivo ou reinicia.
 
 ## Uso
 
 ```bash
 chmod +x install.sh
-./install.sh                         # modo interativo
+./install.sh                         # fluxo completo interativo
 ./install.sh --desktop gnome --profile gaming --dry-run
 ./install.sh --detect-only
 ./install.sh --list-changes
@@ -16,6 +17,32 @@ chmod +x install.sh
 
 Desktops: `gnome`, `kde`, `xfce`, `cinnamon`, `hyprland`, `minimal`.
 Perfis: `minimal`, `desktop`, `gaming`. O perfil gaming é o único que planeja suporte gráfico 32-bit.
+
+## Ferramentas individuais
+
+Cada entrypoint reutiliza os módulos de `hardware/`, `drivers/`, `desktop/`, `profiles/` e `services/`, sem chamar `install.sh` nem duplicar lógica:
+
+```bash
+./tools/hardware.sh
+./tools/cpu.sh
+./tools/gpu.sh --dry-run
+./tools/storage.sh
+./tools/network.sh
+./tools/bluetooth.sh
+./tools/audio.sh
+./tools/desktop.sh gnome --dry-run
+./tools/gaming.sh --dry-run
+```
+
+Ferramentas que alteram o sistema aceitam `--dry-run`, `--yes`, `--verbose` e `--help`; a ordem é sempre detectar, planejar, mostrar, confirmar, executar e validar. Ferramentas de detecção não modificam o sistema.
+
+## Fluxo completo
+
+```bash
+./install.sh --desktop gnome --profile gaming
+```
+
+O fluxo continua sendo orquestrado por `install.sh`. A API interna em `lib/api.sh` é compartilhada por ele e pelas ferramentas, enquanto os módulos existentes continuam sendo os donos da lógica de detecção e planejamento.
 
 ## Segurança e estado
 
