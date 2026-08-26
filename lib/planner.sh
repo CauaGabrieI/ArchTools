@@ -8,7 +8,6 @@ add_service() {
   fi
   [[ " ${PLAN_SERVICES_ENABLE[*]} " == *" $s "* ]] || PLAN_SERVICES_ENABLE+=("$s")
 }
-profile_packages() { "profile_$1"; }
 driver_packages() {
   plan_firmware
   if [[ ${HARDWARE[machine]:-} != VM && ${HARDWARE[virtualization]:-none} == none ]]; then
@@ -22,10 +21,14 @@ driver_packages() {
   if [[ ${HARDWARE[gpu_nvidia]:-0} == 1 ]]; then plan_nvidia_driver; fi
 }
 build_plan() {
-  local desktop=$1 profile=$2
+  local desktop=$1 usage_profile=$2
   PLAN_PACKAGES=(); PLAN_OPTIONAL_PACKAGES=(); PLAN_SERVICES_ENABLE=(); PLAN_SERVICES_CONFIGURED=(); PLAN_NOTES=(); PLAN_FILES=()
-  profile_packages "$profile"; driver_packages; network_plan; audio_plan; bluetooth_plan
-  if [[ $profile != minimal && $desktop != minimal ]]; then desktop_plan "$desktop"; fi
+  USAGE_PROFILE=$usage_profile; PROFILE=$usage_profile
+  resolve_hardware_profile
+  hardware_profile_apply "$HARDWARE_PROFILE"
+  usage_profile_apply "$USAGE_PROFILE"
+  driver_packages; network_plan; audio_plan; bluetooth_plan
+  if [[ $USAGE_PROFILE != minimal && $USAGE_PROFILE != server && $desktop != minimal ]]; then desktop_plan "$desktop"; fi
   guard_existing_display_manager
   if [[ ${HARDWARE[trim]:-0} == 1 ]]; then add_service fstrim.timer; fi
   PLAN_NOTES+=("Nenhuma operação de disco, formatação, partição, bootloader, overclock ou reboot será executada.")
@@ -50,7 +53,7 @@ show_plan() {
   cat <<EOF
 
 ================= PLANO DE INSTALAÇÃO =================
-Desktop: ${DESKTOP:-minimal}    Perfil: ${PROFILE:-minimal}
+Desktop: ${DESKTOP:-minimal}    Hardware profile: ${HARDWARE_PROFILE:-auto}    Usage profile: ${USAGE_PROFILE:-minimal}
 Pacotes:
 EOF
   printf '  Já instalados:\n'; ((${#PLAN_PACKAGES_INSTALLED[@]})) && printf '    = %s\n' "${PLAN_PACKAGES_INSTALLED[@]}" || printf '    (nenhum)\n'
@@ -63,8 +66,18 @@ EOF
   printf 'Garantias:\n'; printf '  - %s\n' "${PLAN_NOTES[@]}"
 }
 select_interactively_if_needed() {
-  if [[ -z $DESKTOP && -t 0 ]]; then printf 'Desktop [gnome/kde/xfce/cinnamon/hyprland/minimal] (minimal): '; read -r DESKTOP; DESKTOP=${DESKTOP:-minimal}; fi
-  if [[ -z $PROFILE && -t 0 ]]; then printf 'Perfil [minimal/desktop/gaming] (desktop): '; read -r PROFILE; PROFILE=${PROFILE:-desktop}; fi
-  DESKTOP=${DESKTOP:-minimal}; PROFILE=${PROFILE:-minimal}
+  local answer
+  if (( ! HARDWARE_PROFILE_EXPLICIT )) && [[ -t 0 ]]; then
+    printf 'Hardware profile detectado: %s. Usar este perfil? [Y/n] ' "$HARDWARE_PROFILE_DETECTED"; read -r answer
+    if [[ $answer =~ ^[Nn]$ ]]; then printf 'Hardware profile [desktop/notebook/server/vm]: '; read -r HARDWARE_PROFILE; else HARDWARE_PROFILE=$HARDWARE_PROFILE_DETECTED; fi
+  fi
+  [[ $HARDWARE_PROFILE =~ ^(auto|desktop|notebook|server|vm)$ ]] || die "Hardware profile inválido: $HARDWARE_PROFILE"
+  resolve_hardware_profile
+  if [[ -z $USAGE_PROFILE && -t 0 ]]; then printf 'Usage profile [minimal/desktop/gaming/development/server] (desktop): '; read -r USAGE_PROFILE; USAGE_PROFILE=${USAGE_PROFILE:-desktop}; fi
+  [[ ${USAGE_PROFILE:-minimal} =~ ^(minimal|desktop|gaming|development|server)$ ]] || die "Usage profile inválido: $USAGE_PROFILE"
+  USAGE_PROFILE=${USAGE_PROFILE:-minimal}; PROFILE=$USAGE_PROFILE
+  if [[ -z $DESKTOP && $USAGE_PROFILE != minimal && $USAGE_PROFILE != server && -t 0 ]]; then printf 'Desktop [gnome/kde/xfce/cinnamon/hyprland/minimal] (minimal): '; read -r DESKTOP; DESKTOP=${DESKTOP:-minimal}; fi
+  DESKTOP=${DESKTOP:-minimal}
+  [[ $DESKTOP =~ ^(gnome|kde|xfce|cinnamon|hyprland|minimal)$ ]] || die "Desktop inválido: $DESKTOP"
 }
 confirm_plan() { (( ASSUME_YES )) && return 0; local answer; read -r -p 'Continuar? [y/N] ' answer; [[ $answer =~ ^[Yy]$ ]]; }

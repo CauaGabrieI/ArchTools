@@ -81,7 +81,7 @@ if env -u XDG_CURRENT_DESKTOP -u DESKTOP_SESSION PATH="$root/tests/mock-bin:$PAT
   OS_RELEASE_FILE="$root/tests/fixtures/os-release-arch" "$root/archtools" desktop-apps install terminal --dry-run >/dev/null 2>&1; then exit 1; fi
 
 if command -v script >/dev/null 2>&1; then
-  interactive=$(printf 'terminal\n' | script -qec "env PATH='$root/tests/mock-bin':\$PATH XDG_STATE_HOME='$cli_state' OS_RELEASE_FILE='$root/tests/fixtures/os-release-arch' '$root/install.sh' --desktop gnome --profile desktop --dry-run" /dev/null)
+  interactive=$(printf 'terminal\n' | script -qec "env PATH='$root/tests/mock-bin':\$PATH XDG_STATE_HOME='$cli_state' OS_RELEASE_FILE='$root/tests/fixtures/os-release-arch' '$root/install.sh' --hardware-profile auto --desktop gnome --profile desktop --dry-run" /dev/null)
   [[ $interactive == *'Componentes ['* && $interactive == *'gnome-console'* ]]
 fi
 

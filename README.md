@@ -77,13 +77,15 @@ Executa a detecção sem realizar a instalação/configuração:
 Use `--dry-run` para visualizar o que seria executado:
 
 ```bash
-./install.sh --desktop gnome --profile gaming --dry-run
+./install.sh --hardware-profile auto --usage-profile gaming \
+  --desktop gnome --dry-run
 ```
 
 ## Configurar um desktop
 
 ```bash
-./install.sh --desktop gnome --profile desktop
+./install.sh --hardware-profile desktop --usage-profile desktop \
+  --desktop gnome
 ```
 
 O desktop core contém apenas a sessão e os serviços essenciais. Terminal,
@@ -91,15 +93,15 @@ navegador, loja, gerenciador de arquivos, editor e compactador são componentes
 opcionais e só entram no plano quando selecionados explicitamente:
 
 ```bash
-./install.sh --desktop gnome --profile desktop \
+./install.sh --desktop gnome --usage-profile desktop \
   --desktop-components terminal,browser,files
 ```
 
 Use `all` para selecionar todas as seis categorias ou `none` para nenhuma:
 
 ```bash
-./install.sh --desktop kde --profile desktop --desktop-components all
-./install.sh --desktop xfce --profile desktop --desktop-components none
+./install.sh --desktop kde --usage-profile desktop --desktop-components all
+./install.sh --desktop xfce --usage-profile desktop --desktop-components none
 ```
 
 `--yes` apenas confirma um plano já selecionado. Ele nunca equivale a
@@ -152,11 +154,19 @@ logs, estado, locks ou transações. Seus exit codes são:
 
 `./archtools diagnostics run` continua disponível para compatibilidade.
 
+Em instalações normais, o mesmo diagnóstico é executado automaticamente antes
+de qualquer persistência ou alteração. Um `WARN` permite continuar; um `FAIL`
+interrompe o fluxo antes de inventário, lock, transação ou mutação. Em seguida,
+o hardware é detectado uma vez, classificado e reutilizado pelo planejamento.
+
 ## Configurar um perfil de gaming
 
 ```bash
-./install.sh --profile gaming
+./install.sh --usage-profile gaming
 ```
+
+`--profile minimal|desktop|gaming` continua temporariamente disponível como
+alias compatível de `--usage-profile`.
 
 ## Listar alterações
 
@@ -189,7 +199,9 @@ logs, estado, locks ou transações. Seus exit codes são:
 | `--dry-run`        | Simula a operação              |
 | `--desktop <nome>` | Seleciona o ambiente desktop   |
 | `--desktop-components <lista>` | Seleciona componentes opcionais explicitamente |
-| `--profile <nome>` | Seleciona o perfil             |
+| `--hardware-profile <nome>` | Seleciona `auto`, `desktop`, `notebook`, `server` ou `vm` |
+| `--usage-profile <nome>` | Seleciona `minimal`, `desktop`, `gaming`, `development` ou `server` |
+| `--profile <nome>` | Alias temporário de usage profile para `minimal`, `desktop` e `gaming` |
 | `--list-changes`   | Lista alterações registradas   |
 | `--rollback`       | Reverte alterações suportadas  |
 | `--uninstall`      | Remove componentes registrados |
@@ -201,13 +213,13 @@ logs, estado, locks ou transações. Seus exit codes são:
 ./install.sh --detect-only
 
 # Simular configuração GNOME + Gaming
-./install.sh --desktop gnome --profile gaming --dry-run
+./install.sh --desktop gnome --usage-profile gaming --dry-run
 
 # Aplicar configuração GNOME + Gaming
-./install.sh --desktop gnome --profile gaming
+./install.sh --desktop gnome --usage-profile gaming
 
 # Simular GNOME com terminal e navegador opcionais
-./install.sh --desktop gnome --profile desktop \
+./install.sh --desktop gnome --usage-profile desktop \
   --desktop-components terminal,browser --dry-run
 
 # Sugestões somente leitura
@@ -328,19 +340,72 @@ Módulos disponíveis para:
 
 ## 🎯 Perfis
 
-Configurações agrupadas por objetivo:
+Os perfis possuem duas dimensões independentes. O **hardware profile** descreve
+o tipo de computador; o **usage profile** descreve sua finalidade. O ambiente
+desktop continua sendo uma terceira escolha separada.
 
-| Perfil    | Objetivo                         |
-| --------- | -------------------------------- |
-| `minimal` | Sistema mínimo                   |
-| `desktop` | Uso geral                        |
-| `gaming`  | Jogos e componentes relacionados |
+Hardware profiles:
 
-Exemplo:
+| Perfil | Detecção automática |
+| ------ | ------------------- |
+| `vm` | Virtualização detectada |
+| `notebook` | Bateria ou chassis portátil |
+| `server` | Chassis de servidor reconhecido |
+| `desktop` | Máquina física sem evidência confiável dos casos anteriores |
+
+`--hardware-profile auto` usa essa classificação conservadora. Um valor
+explícito faz override da classificação. Esses perfis aplicam somente políticas
+de hardware conservadoras.
+
+Usage profiles:
+
+| Perfil | Pacotes planejados |
+| ------ | ------------------ |
+| `minimal` | `linux-firmware`, `networkmanager` |
+| `desktop` | minimal + PipeWire e WirePlumber |
+| `gaming` | desktop + `steam`, `vulkan-tools` |
+| `development` | minimal + `base-devel`, `git` |
+| `server` | minimal + `openssh` (sem habilitar `sshd`) |
+
+Exemplos:
 
 ```bash
-./install.sh --desktop gnome --profile gaming
+# Desktop físico para uso normal
+./install.sh --hardware-profile desktop --usage-profile desktop --desktop gnome
+
+# Notebook gamer
+./install.sh --hardware-profile notebook --usage-profile gaming --desktop kde
+
+# Desktop usado como servidor
+./install.sh --hardware-profile desktop --usage-profile server
+
+# VM de desenvolvimento
+./install.sh --hardware-profile vm --usage-profile development
 ```
+
+O alias legado `--profile minimal|desktop|gaming` permanece funcional e é
+sincronizado internamente com o usage profile.
+
+## 🗃️ Inventário da máquina
+
+Após o doctor e a detecção, somente o fluxo normal persiste o inventário em:
+
+```text
+$XDG_STATE_HOME/arch-smart-postinstall/inventory/
+├── hardware.tsv
+└── fingerprint
+```
+
+Na ausência de `XDG_STATE_HOME`, é usada a área de estado padrão do usuário. O
+diretório usa modo `0700`, os arquivos usam `0600` e cada atualização é feita
+por escrita temporária seguida de rename atômico. O fingerprint SHA-256 é
+estável para o mesmo hardware e usa apenas características não sensíveis.
+
+MAC, IP, hostname, username, números de série e UUIDs pessoais não são
+armazenados. `--dry-run`, `--detect-only`, `doctor` e `desktop-apps suggest`
+continuam read-only e não criam inventário. Estados antigos sem esse diretório
+continuam válidos; quando ele existe, o doctor valida formato e permissões sem
+corrigi-los.
 
 ---
 
@@ -513,6 +578,8 @@ ArchTools/
 ├── hardware/
 ├── lib/
 ├── profiles/
+│   ├── hardware/
+│   └── usage/
 ├── services/
 ├── tests/
 │   ├── fixtures/
@@ -542,6 +609,9 @@ O projeto possui testes para componentes como:
 * Preflight
 * Dry-run
 * Transactions
+* Startup health check
+* Inventory
+* Hardware e usage profiles
 
 Também existem testes de integração e ciclo de vida das transações.
 
@@ -558,6 +628,9 @@ tests/
 ├── test_cpu.sh
 ├── test_dry_run.sh
 ├── test_doctor.sh
+├── test_inventory.sh
+├── test_profiles_v2.sh
+├── test_startup_flow.sh
 ├── test_gpu.sh
 ├── test_modules.sh
 ├── test_network.sh

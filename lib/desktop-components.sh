@@ -122,7 +122,7 @@ desktop_apps_cli_main() {
     install)
       [[ $desktop != unknown ]] || die 'Desktop desconhecido; use --desktop.'
       require_supported_system
-      DESKTOP=$desktop; PROFILE=desktop; archtools_reset_plan
+      DESKTOP=$desktop; USAGE_PROFILE=desktop; PROFILE=desktop; archtools_reset_plan
       desktop_components_plan "$desktop" "$selection" || return 1
       validate_plan_pre_execution || plan_status=$?
       archtools_show_module_plan desktop-apps

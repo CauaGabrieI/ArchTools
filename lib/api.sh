@@ -56,7 +56,7 @@ archtools_build_module_plan() {
     bluetooth) bluetooth_plan ;;
     audio) audio_plan ;;
     desktop) [[ $choice =~ ^(gnome|kde|xfce|cinnamon|hyprland|minimal)$ ]] || die "Desktop inválido: $choice"; "desktop_$choice" ;;
-    gaming) PROFILE=gaming; profile_gaming; driver_packages ;;
+    gaming) USAGE_PROFILE=gaming; PROFILE=gaming; usage_profile_gaming; driver_packages ;;
     hardware) return 0 ;;
     diagnostics) return 0 ;;
     *) die "Ferramenta desconhecida: $module" ;;
@@ -97,7 +97,9 @@ Comandos:
   desktop-apps suggest [opções]    Sugere componentes sem alterar o sistema
   desktop-apps install <lista>     Planeja/instala componentes selecionados
 
-Opções: --dry-run  --yes  --verbose  --help
+Opções de instalação: --hardware-profile <perfil>  --usage-profile <perfil>
+  --profile <perfil> (alias legado)  --desktop <ambiente>
+Opções gerais: --dry-run  --yes  --verbose  --help
 EOF
 }
 
@@ -120,8 +122,8 @@ archtools_cli_main() {
       esac
       ;;
     profile)
-      profile_name=${1:-}; [[ -n $profile_name ]] || die "Perfil ausente. Use minimal, desktop ou gaming."
-      shift; main --profile "$profile_name" "$@" ;;
+      profile_name=${1:-}; [[ -n $profile_name ]] || die "Perfil ausente. Use minimal, desktop, gaming, development ou server."
+      shift; main --usage-profile "$profile_name" "$@" ;;
     module)
       subcommand=${1:-}; [[ -n $subcommand ]] || die "Subcomando module ausente. Use list ou info."
       shift

@@ -9,7 +9,7 @@ LOG_DIR="$PROJECT_DIR/logs"
 RUN_ID=$(date +%F_%H-%M-%S-%N)
 LOG_FILE=""
 DRY_RUN=0; VERBOSE=0; NO_REBOOT=0; ASSUME_YES=0; READ_ONLY_ACTION=0
-DESKTOP=""; PROFILE=""; DESKTOP_COMPONENTS_SPEC=""; ACTION="install"
+DESKTOP=""; PROFILE=""; USAGE_PROFILE=""; HARDWARE_PROFILE="auto"; HARDWARE_PROFILE_EXPLICIT=0; DESKTOP_COMPONENTS_SPEC=""; ACTION="install"
 declare -a PLAN_PACKAGES=() PLAN_OPTIONAL_PACKAGES=() PLAN_SERVICES_ENABLE=() PLAN_SERVICES_CONFIGURED=() PLAN_SERVICES_DISABLE=() PLAN_NOTES=() PLAN_FILES=()
 declare -A HARDWARE=()
 
@@ -29,14 +29,16 @@ trap 'on_error "$LINENO" "$BASH_COMMAND"' ERR
 
 load_modules() {
   local module
-  for module in logger state transaction detect packages backup rollback desktop-components doctor planner executor validator ui cli modules preflight api; do
+  for module in logger state transaction detect packages backup rollback desktop-components doctor inventory profiles planner executor validator ui cli modules preflight api; do
     # shellcheck source=/dev/null
     source "$PROJECT_DIR/lib/$module.sh"
   done
-  for module in "$PROJECT_DIR"/hardware/*.sh "$PROJECT_DIR"/drivers/*.sh "$PROJECT_DIR"/desktop/*.sh "$PROJECT_DIR"/profiles/*.sh "$PROJECT_DIR"/services/*.sh; do
+  for module in "$PROJECT_DIR"/hardware/*.sh "$PROJECT_DIR"/drivers/*.sh "$PROJECT_DIR"/desktop/*.sh "$PROJECT_DIR"/services/*.sh; do
     # shellcheck source=/dev/null
     source "$module"
   done
+  for module in desktop notebook server vm; do source "$PROJECT_DIR/profiles/hardware/$module.sh"; done
+  for module in minimal desktop gaming development server; do source "$PROJECT_DIR/profiles/usage/$module.sh"; done
   module_registry_init
 }
 
@@ -59,22 +61,45 @@ main() {
     [[ -d $STATE_DIR ]] && list_changes || printf 'Nenhum estado persistente encontrado.\n'
     return
   fi
-  init_logger
   case "$ACTION" in
-    rollback) init_state; rollback_run ;;
-    uninstall) init_state; uninstall_run ;;
-    *) require_supported_system; run_install_flow ;;
+    rollback) init_logger; init_state; rollback_run ;;
+    uninstall) init_logger; init_state; uninstall_run ;;
+    *)
+      if [[ $ACTION == detect-only ]]; then init_logger; require_supported_system; fi
+      run_install_flow
+      ;;
   esac
+}
+
+startup_health_check() {
+  printf 'ArchTools startup\n'
+  if doctor_run >/dev/null; then
+    if (( DOCTOR_WARN )); then printf '[WARN] Doctor: %d aviso(s); continuando.\n' "$DOCTOR_WARN"
+    else printf '[OK] Doctor\n'; fi
+    return 0
+  fi
+  printf '[FAIL] ArchTools health check\nExecute:\n  ./archtools doctor --verbose\n' >&2
+  return 1
+}
+
+startup_prepare() {
+  startup_health_check || return 1
+  archtools_detect_module hardware
+  printf '[OK] Hardware detected\n'
+  detect_hardware_profile
+  printf '[OK] Machine profile: %s\n' "$HARDWARE_PROFILE_DETECTED"
+  (( DRY_RUN )) || inventory_save
 }
 
 run_install_flow() {
   banner
-  archtools_detect_module hardware
+  if [[ $ACTION == detect-only ]]; then archtools_detect_module hardware; show_hardware; return; fi
+  startup_prepare || return 1
   show_hardware
-  [[ $ACTION == detect-only ]] && return
   select_interactively_if_needed
-  desktop_components_interactive_select "$DESKTOP"
-  build_plan "$DESKTOP" "$PROFILE"
+  init_logger
+  if [[ $USAGE_PROFILE != minimal && $USAGE_PROFILE != server ]]; then desktop_components_interactive_select "$DESKTOP"; fi
+  build_plan "$DESKTOP" "$USAGE_PROFILE"
   desktop_components_plan "$DESKTOP" "${DESKTOP_COMPONENTS_SPEC:-none}"
   local plan_status=0
   validate_plan_pre_execution || plan_status=$?

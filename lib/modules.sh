@@ -26,7 +26,7 @@ module_registry_init() {
   module_register audio "Audio stack inspection and planning" multimedia detect,plan "detect_audio,audio_plan" yes no
   module_register desktop "Desktop environment planning" desktop plan,execute,validate "desktop_gnome,desktop_kde,desktop_xfce,desktop_cinnamon,desktop_hyprland,desktop_minimal" no yes
   module_register desktop-apps "Optional desktop component detection and planning" desktop detect,plan,execute,validate "desktop_components_show_suggestions,desktop_components_plan,execute_plan,validate_plan" no yes
-  module_register gaming "Gaming profile planning" profile plan,execute,validate "profile_gaming,driver_packages,execute_plan,validate_plan" no yes
+  module_register gaming "Gaming usage profile planning" profile plan,execute,validate "usage_profile_gaming,driver_packages,execute_plan,validate_plan" no yes
   MODULE_REGISTRY_INITIALIZED=1
 }
 

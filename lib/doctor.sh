@@ -36,7 +36,7 @@ doctor_check_system() {
   architecture=$(uname -m 2>/dev/null || true)
   [[ -n $architecture ]] && doctor_ok "Arquitetura: $architecture" || doctor_fail 'Arquitetura: não detectada'
   doctor_ok "Bash: ${BASH_VERSION%%(*}"
-  for command_name in pacman sudo systemctl awk grep sed find mktemp date uname stat sort comm wc; do
+  for command_name in pacman sudo systemctl awk grep sed find mktemp date uname stat sort comm wc sha256sum; do
     if command -v "$command_name" >/dev/null 2>&1; then
       doctor_ok "$command_name: disponível"
       doctor_detail "$command_name: $(command -v "$command_name")"
@@ -156,6 +156,26 @@ doctor_check_services() {
   (( mismatched == 0 )) && doctor_ok "Serviços gerenciados: consistentes ($count)" || doctor_warn "Serviços gerenciados divergentes: $mismatched de $count"
 }
 
+doctor_check_inventory() {
+  local dir="$STATE_DIR/inventory" hardware="$STATE_DIR/inventory/hardware.tsv" fingerprint="$STATE_DIR/inventory/fingerprint" file
+  [[ -e $dir ]] || { doctor_ok 'Inventário: não presente (state legado compatível)'; return; }
+  if [[ ! -d $dir ]]; then doctor_fail "Inventário inválido: não é diretório: $dir"; return; fi
+  doctor_check_mode "$dir" 700 'Diretório de inventário'
+  for file in "$hardware" "$fingerprint"; do
+    if [[ ! -e $file ]]; then doctor_fail "Inventário incompleto: arquivo ausente: $file"; continue; fi
+    doctor_check_mode "$file" 600 'Arquivo de inventário'
+    [[ -r $file ]] || doctor_fail "Arquivo de inventário ilegível: $file"
+  done
+  if [[ -r $hardware ]]; then
+    if awk -F '\t' 'NF!=2 || $1 !~ /^[a-z][a-z0-9_]*$/ {bad=1} END {exit bad}' "$hardware"; then doctor_ok 'Inventário: formato válido'
+    else doctor_fail 'Inventário: hardware.tsv malformado'; fi
+  fi
+  if [[ -r $fingerprint ]]; then
+    if grep -Eq '^[[:xdigit:]]{64}$' "$fingerprint" && [[ $(wc -l < "$fingerprint") == 1 ]]; then doctor_ok 'Inventário: fingerprint válido'
+    else doctor_fail 'Inventário: fingerprint malformado'; fi
+  fi
+}
+
 doctor_check_state() {
   local path file
   local -a required_dirs=(backups transactions)
@@ -200,6 +220,7 @@ doctor_check_state() {
   doctor_check_backups
   doctor_check_packages
   doctor_check_services
+  doctor_check_inventory
 }
 
 doctor_run() {
