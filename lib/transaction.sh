@@ -125,7 +125,7 @@ transaction_rollback_change() {
   case "$type" in
     package)
       [[ $before == absent && $after == installed ]] || return 1
-      is_package_installed "$resource" && sudo pacman -R -- "$resource"
+      is_package_installed "$resource" && sudo pacman -R --noconfirm -- "$resource"
       state_remove_value "$STATE_DIR/installed-packages.txt" "$resource"
       ;;
     service)

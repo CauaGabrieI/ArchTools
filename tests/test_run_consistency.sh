@@ -13,7 +13,7 @@ source "$root/lib/packages.sh"
 
 declare -A installed=([good]=0 [failed]=1)
 is_package_installed() { [[ ${installed[$1]:-0} == 1 ]]; }
-sudo() { if [[ $1 == pacman && $2 == -R ]]; then installed[$4]=0; return 0; fi; return 1; }
+sudo() { if [[ $1 == pacman && $2 == -R ]]; then installed[${@: -1}]=0; return 0; fi; return 1; }
 
 begin_transaction install
 success_transaction=$TRANSACTION_ID

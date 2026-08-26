@@ -28,7 +28,7 @@ sudo() {
   fi
   if [[ $1 == pacman && $2 == -Rns ]]; then
     REMOVE_CALLS=$((REMOVE_CALLS + 1))
-    [[ $3 == -- && $4 == app-a && $5 == lib-b && ${6:-} == '' ]]
+    [[ $3 == --noconfirm && $4 == -- && $5 == app-a && $6 == lib-b && ${7:-} == '' ]]
     (( REMOVE_FAIL == 0 )) || return 1
     installed[app-a]=0; installed[lib-b]=0; installed[dependency-d]=0
     return 0
@@ -49,7 +49,7 @@ setup_applied_install() {
   STATE_DIR="$task_tmp/$name"; RUN_ID="$name-install"; DRY_RUN=0; LOG_FILE=''; APP_ID=arch-smart-postinstall
   DESKTOP=gnome; PROFILE=desktop; ASSUME_YES=1
   TRANSACTION_ID=''; TRANSACTION_STATUS=''; TRANSACTION_MODULE=''
-  installed=([app-a]=1 [lib-b]=1 [dependency-d]=1 [shared-c]=1); service_state=([display.service]=enabled)
+  installed=([app-a]=1 [lib-b]=1 [dependency-d]=1 [shared-c]=1 [old-managed]=1); service_state=([display.service]=enabled)
   PREFLIGHT_FAIL=0; RESOLVE_SHARED=0; REMOVE_FAIL=0; COMPENSATION_FAIL=0; REMOVE_CALLS=0; SERVICE_CHANGES=0
   init_state
   begin_transaction install
@@ -57,7 +57,7 @@ setup_applied_install() {
   record_change packages package app-a absent installed yes
   record_change packages package lib-b absent installed yes
   record_change services service display.service disabled enabled yes
-  printf 'app-a\nlib-b\n' > "$STATE_DIR/installed-packages.txt"
+  printf 'old-managed\napp-a\nlib-b\n' > "$STATE_DIR/installed-packages.txt"
   printf 'shared-c\n' > "$STATE_DIR/existing-packages.txt"
   printf 'display.service|disabled|enabled\n' > "$STATE_DIR/services.txt"
   commit_transaction
@@ -69,7 +69,8 @@ setup_applied_install success
 rollback_run
 [[ $REMOVE_CALLS == 1 && ${installed[app-a]} == 0 && ${installed[lib-b]} == 0 && ${installed[dependency-d]} == 0 && ${installed[shared-c]} == 1 ]]
 [[ ${service_state[display.service]} == disabled ]]
-[[ ! -s $STATE_DIR/installed-packages.txt && ! -s $STATE_DIR/services.txt ]]
+grep -Fqx old-managed "$STATE_DIR/installed-packages.txt"
+[[ $(wc -l < "$STATE_DIR/installed-packages.txt") == 1 && ! -s $STATE_DIR/services.txt ]]
 grep -Fqx shared-c "$STATE_DIR/existing-packages.txt"
 [[ $(rollback_target_status "$TARGET_TRANSACTION") == rolled_back ]]
 ROLLBACK_TRANSACTION=$TRANSACTION_ID
@@ -118,5 +119,17 @@ grep -Fqx 'status=rollback_failed' "$STATE_DIR/last-run"
 grep -Fq '"status": "rollback_failed"' "$STATE_DIR/state.json"
 partial_changes=$(list_changes)
 [[ $partial_changes != *'display.service|disabled|enabled'* ]]
+
+# The newest mutable module is selected even when it is not the full installer.
+setup_applied_install module-selection
+OLD_INSTALL_TRANSACTION=$TARGET_TRANSACTION
+RUN_ID=module-selection-desktop-app; TRANSACTION_ID=''; TRANSACTION_STATUS=''; TRANSACTION_MODULE=''
+begin_transaction desktop-apps
+DESKTOP_APP_TRANSACTION=$TRANSACTION_ID
+record_change desktop-apps package component-terminal absent installed yes
+commit_transaction
+RUN_ID=module-selection-rollback; TRANSACTION_ID=''; TRANSACTION_STATUS=''; TRANSACTION_MODULE=''
+[[ $(rollback_select_target) == "$DESKTOP_APP_TRANSACTION" ]]
+[[ $(rollback_select_target) != "$OLD_INSTALL_TRANSACTION" ]]
 
 echo 'test_rollback_lifecycle: ok'

@@ -26,7 +26,7 @@ record_managed_package_provenance() {
   return 0
 }
 install_packages() {
-  local p rc=0 missing=()
+  local p rc=0 missing=() pacman_confirmation=()
   for p in "$@"; do
     if is_package_installed "$p"; then record_existing_package_provenance "$p"; log INFO "[OK] $p já instalado"
     elif ! package_available "$p"; then
@@ -36,7 +36,8 @@ install_packages() {
   done
   ((${#missing[@]})) || return 0
   log INFO "Instalando: ${missing[*]}"
-  sudo pacman -S --needed "${missing[@]}" || rc=$?
+  (( ${ASSUME_YES:-0} )) && pacman_confirmation=(--noconfirm)
+  sudo pacman -S --needed "${pacman_confirmation[@]}" -- "${missing[@]}" || rc=$?
   for p in "${missing[@]}"; do
     if is_package_installed "$p"; then
       if [[ ${TRANSACTION_STATUS:-} == active ]] && declare -F record_change >/dev/null 2>&1; then

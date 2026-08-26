@@ -1,5 +1,5 @@
 # Runtime state, backups and logs
-logs/*.log
+logs/
 backups/
 state/
 .local/

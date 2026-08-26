@@ -17,8 +17,8 @@ is_package_installed() { [[ ${installed[$1]:-0} == 1 ]]; }
 package_available() { return 0; }
 systemctl() { [[ $1 == is-enabled ]] && { printf '%s\n' "${services[$2]:-disabled}"; [[ ${services[$2]:-disabled} == enabled ]]; }; }
 sudo() {
-  if [[ $1 == pacman && $2 == -S ]]; then local p; for p in "${@:4}"; do installed[$p]=1; done; [[ ${FAIL_AFTER_INSTALL:-0} == 0 ]]; return; fi
-  if [[ $1 == pacman && $2 == -R ]]; then installed[$4]=0; return 0; fi
+  if [[ $1 == pacman && $2 == -S ]]; then local seen_separator=0 p; for p in "${@:3}"; do [[ $p == -- ]] && { seen_separator=1; continue; }; (( seen_separator )) && installed[$p]=1; done; [[ ${FAIL_AFTER_INSTALL:-0} == 0 ]]; return; fi
+  if [[ $1 == pacman && $2 == -R ]]; then installed[${@: -1}]=0; return 0; fi
   if [[ $1 == systemctl && $2 == enable ]]; then services[$3]=enabled; return 0; fi
   if [[ $1 == systemctl && $2 == disable ]]; then services[$3]=disabled; return 0; fi
   if [[ $1 == cp ]]; then command cp "${@:2}"; return; fi

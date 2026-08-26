@@ -86,6 +86,51 @@ Use `--dry-run` para visualizar o que seria executado:
 ./install.sh --desktop gnome --profile desktop
 ```
 
+O desktop core contém apenas a sessão e os serviços essenciais. Terminal,
+navegador, loja, gerenciador de arquivos, editor e compactador são componentes
+opcionais e só entram no plano quando selecionados explicitamente:
+
+```bash
+./install.sh --desktop gnome --profile desktop \
+  --desktop-components terminal,browser,files
+```
+
+Use `all` para selecionar todas as seis categorias ou `none` para nenhuma:
+
+```bash
+./install.sh --desktop kde --profile desktop --desktop-components all
+./install.sh --desktop xfce --profile desktop --desktop-components none
+```
+
+`--yes` apenas confirma um plano já selecionado. Ele nunca equivale a
+`--desktop-components all`.
+
+## Componentes de desktop standalone
+
+Detecte o desktop atual e veja sugestões sem criar logs, estado ou transações:
+
+```bash
+./archtools desktop-apps suggest
+./archtools desktop-apps suggest --desktop kde
+```
+
+Planeje ou instale somente as categorias escolhidas:
+
+```bash
+./archtools desktop-apps install terminal --desktop gnome --dry-run
+./archtools desktop-apps install terminal,browser,store --desktop kde
+```
+
+Categorias válidas:
+
+```text
+terminal browser store files editor archive all none
+```
+
+Ambientes suportados: GNOME, KDE Plasma, XFCE, Cinnamon e Hyprland. O perfil
+`minimal` não recebe sugestões automáticas. Desktop desconhecido exige
+`--desktop` explícito antes de qualquer instalação.
+
 ## Configurar um perfil de gaming
 
 ```bash
@@ -121,6 +166,7 @@ Use `--dry-run` para visualizar o que seria executado:
 | `--detect-only`    | Detecta o sistema sem instalar |
 | `--dry-run`        | Simula a operação              |
 | `--desktop <nome>` | Seleciona o ambiente desktop   |
+| `--desktop-components <lista>` | Seleciona componentes opcionais explicitamente |
 | `--profile <nome>` | Seleciona o perfil             |
 | `--list-changes`   | Lista alterações registradas   |
 | `--rollback`       | Reverte alterações suportadas  |
@@ -137,6 +183,13 @@ Use `--dry-run` para visualizar o que seria executado:
 
 # Aplicar configuração GNOME + Gaming
 ./install.sh --desktop gnome --profile gaming
+
+# Simular GNOME com terminal e navegador opcionais
+./install.sh --desktop gnome --profile desktop \
+  --desktop-components terminal,browser --dry-run
+
+# Sugestões somente leitura
+./archtools desktop-apps suggest
 
 # Ver alterações
 ./install.sh --list-changes

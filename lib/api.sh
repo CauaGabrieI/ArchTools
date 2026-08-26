@@ -93,6 +93,8 @@ Comandos:
   drivers detect                   Detecta CPU/GPU para drivers
   drivers install [opções]         Planeja e instala drivers após confirmação
   profile <nome> [opções]          Executa um perfil existente
+  desktop-apps suggest [opções]    Sugere componentes sem alterar o sistema
+  desktop-apps install <lista>     Planeja/instala componentes selecionados
 
 Opções: --dry-run  --yes  --verbose  --help
 EOF
@@ -127,6 +129,7 @@ archtools_cli_main() {
         *) die "Subcomando module inválido: $subcommand" ;;
       esac
       ;;
+    desktop-apps) desktop_apps_cli_main "$@" ;;
     help|-h|--help) archtools_usage ;;
     *) die "Comando inválido: $command_name. Use ./archtools --help." ;;
   esac

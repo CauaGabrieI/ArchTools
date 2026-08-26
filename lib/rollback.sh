@@ -1,6 +1,15 @@
 #!/usr/bin/env bash
 
 rollback_target_status() { awk -F '\t' -v id="$1" '$1==id {status=$3} END {print status}' "$STATE_DIR/transactions.tsv"; }
+rollback_target_event_file() { printf '%s/transactions/%s.tsv\n' "$STATE_DIR" "$ROLLBACK_TARGET"; }
+
+rollback_target_services() {
+  awk -F '\t' '$6=="change" && $7=="service" && $11=="yes" {print $8 "|" $9 "|" $10}' "$(rollback_target_event_file)"
+}
+
+rollback_target_files() {
+  awk -F '\t' '$6=="change" && $7=="file" && $11=="yes" {print $8 "\t" $9 "\t" $10}' "$(rollback_target_event_file)"
+}
 
 rollback_select_target() {
   local id status event_file
@@ -11,7 +20,7 @@ rollback_select_target() {
     if [[ $status == committed && -r $event_file ]] && awk -F '\t' '$6=="change" && $7!="rollback" {found=1} END {exit !found}' "$event_file"; then
       printf '%s\n' "$id"; return 0
     fi
-  done < <(awk -F '\t' '$3=="committed" && $4=="install" {print $1}' "$STATE_DIR/transactions.tsv" | tac)
+  done < <(awk -F '\t' '$3=="committed" && $4!="rollback" {print $1}' "$STATE_DIR/transactions.tsv" | tac)
   return 1
 }
 
@@ -29,7 +38,7 @@ rollback_collect_packages() {
     [[ -n $p ]] || continue
     grep -Fqx -- "$p" "$STATE_DIR/existing-packages.txt" && { log ERROR "Rollback inseguro: pacote também marcado como preexistente: $p"; return 1; }
     ROLLBACK_PACKAGES+=("$p")
-  done < "$STATE_DIR/installed-packages.txt"
+  done < <(awk -F '\t' '$6=="change" && $7=="package" && $9=="absent" && $10=="installed" && $11=="yes" {print $8}' "$(rollback_target_event_file)")
 }
 
 rollback_preflight() {
@@ -49,12 +58,12 @@ rollback_preflight() {
     [[ -n $service ]] || continue; current=$(systemctl is-enabled "$service" 2>/dev/null || true)
     [[ $current == "$new" ]] || { log ERROR "Rollback inválido: estado atual de $service é ${current:-desconhecido}, esperado $new."; return 1; }
     [[ $old == enabled || $old == disabled || $old == masked ]] || { log ERROR "Rollback inválido: estado anterior não restaurável para $service: $old"; return 1; }
-  done < "$STATE_DIR/services.txt"
-  while IFS=$'\t' read -r path backup _hash _time _module operation; do
+  done < <(rollback_target_services)
+  while IFS=$'\t' read -r path backup operation; do
     [[ -n $path ]] || continue
     [[ $operation == created || $operation == modified ]] || { log ERROR "Rollback inválido: operação de arquivo desconhecida: $operation"; return 1; }
     [[ $operation != modified || -r $backup ]] || { log ERROR "Rollback inválido: backup ausente para $path"; return 1; }
-  done < "$STATE_DIR/backups/manifest.tsv"
+  done < <(rollback_target_files)
 }
 
 rollback_finish_transaction() {
@@ -76,7 +85,7 @@ rollback_compensate() {
     case "$type" in
       service) transaction_restore_service "$resource" "$desired" || status=1 ;;
       file) if [[ $existed == yes ]]; then sudo cp -a -- "$snapshot" "$resource" || status=1; else sudo rm -f -- "$resource" || status=1; fi ;;
-      packages) sudo pacman -S --needed -- "${ROLLBACK_PACKAGES[@]}" || status=1 ;;
+      packages) sudo pacman -S --needed --noconfirm -- "${ROLLBACK_PACKAGES[@]}" || status=1 ;;
       *) status=1 ;;
     esac
     transaction_write_event compensation "$type" "$resource" rollback restored yes || status=1
@@ -90,7 +99,7 @@ rollback_sync_partial_state() {
   while IFS='|' read -r service old new; do
     [[ -n $service ]] || continue; current=$(systemctl is-enabled "$service" 2>/dev/null || true)
     [[ $current != "$old" ]] || state_remove_value "$STATE_DIR/services.txt" "$service|$old|$new"
-  done < <(cat "$STATE_DIR/services.txt")
+  done < <(rollback_target_services)
 }
 
 rollback_fail() {
@@ -105,14 +114,14 @@ rollback_fail() {
 }
 
 rollback_apply_files() {
-  local path backup _hash _time _module operation snapshot existed index=0
-  while IFS=$'\t' read -r path backup _hash _time _module operation; do
+  local path backup operation snapshot existed index=0
+  while IFS=$'\t' read -r path backup operation; do
     [[ -n $path ]] || continue; snapshot="$ROLLBACK_COMP_DIR/file-$index"; existed=no
     if [[ -e $path ]]; then sudo cp -a -- "$path" "$snapshot" || return 1; existed=yes; fi
     if [[ $operation == modified ]]; then sudo cp -a -- "$backup" "$path" || return 1; elif [[ $operation == created ]]; then sudo rm -f -- "$path" || return 1; fi
     rollback_push_compensation $'file\t'"$path"$'\t-\t'"$snapshot"$'\t'"$existed"
     record_change rollback file "$path" applied reverted yes || return 1; index=$((index + 1))
-  done < "$STATE_DIR/backups/manifest.tsv"
+  done < <(rollback_target_files)
 }
 
 rollback_apply_services() {
@@ -121,13 +130,13 @@ rollback_apply_services() {
     [[ -n $service ]] || continue; transaction_restore_service "$service" "$old" || return 1
     rollback_push_compensation $'service\t'"$service"$'\t'"$new"$'\t-\t-'
     record_change rollback service "$service" "$new" "$old" yes || return 1
-  done < "$STATE_DIR/services.txt"
+  done < <(rollback_target_services)
 }
 
 rollback_apply_packages() {
   local p
   ((${#ROLLBACK_PACKAGES[@]})) || return 0
-  sudo pacman -Rns -- "${ROLLBACK_PACKAGES[@]}" || return 1
+  sudo pacman -Rns --noconfirm -- "${ROLLBACK_PACKAGES[@]}" || return 1
   rollback_push_compensation $'packages\tpackage-set\t-\t-\t-'
   for p in "${ROLLBACK_PACKAGES[@]}"; do
     is_package_installed "$p" && return 1
@@ -140,10 +149,16 @@ rollback_apply_packages() {
 }
 
 rollback_clear_current_changes() {
-  printf '' | atomic_write "$STATE_DIR/installed-packages.txt"
-  printf '' | atomic_write "$STATE_DIR/services.txt"
-  printf '' | atomic_write "$STATE_DIR/modified-files.txt"
-  printf '' | atomic_write "$STATE_DIR/backups/manifest.tsv"
+  local p service old new path backup operation
+  for p in "${ROLLBACK_PACKAGES[@]}"; do state_remove_value "$STATE_DIR/installed-packages.txt" "$p"; done
+  while IFS='|' read -r service old new; do
+    [[ -n $service ]] && state_remove_value "$STATE_DIR/services.txt" "$service|$old|$new"
+  done < <(rollback_target_services)
+  while IFS=$'\t' read -r path backup operation; do
+    [[ -n $path ]] || continue
+    state_remove_value "$STATE_DIR/modified-files.txt" "$path"
+    awk -F '\t' -v path="$path" -v backup="$backup" '!($1==path && $2==backup)' "$STATE_DIR/backups/manifest.tsv" | atomic_write "$STATE_DIR/backups/manifest.tsv"
+  done < <(rollback_target_files)
 }
 
 rollback_cleanup_compensation() {
@@ -157,9 +172,9 @@ rollback_show_plan() {
   printf 'Plano de rollback\n  Transação alvo: %s\n  Pacotes gerenciados:\n' "$target"
   ((${#ROLLBACK_PACKAGES[@]})) && printf '    - %s\n' "${ROLLBACK_PACKAGES[@]}" || printf '    (nenhum)\n'
   printf '  Serviços a restaurar:\n'
-  if [[ -s $STATE_DIR/services.txt ]]; then while IFS='|' read -r service old new; do printf '    - %s: %s -> %s\n' "$service" "$new" "$old"; done < "$STATE_DIR/services.txt"; else printf '    (nenhum)\n'; fi
+  if [[ -n $(rollback_target_services) ]]; then while IFS='|' read -r service old new; do printf '    - %s: %s -> %s\n' "$service" "$new" "$old"; done < <(rollback_target_services); else printf '    (nenhum)\n'; fi
   printf '  Arquivos a restaurar/remover:\n'
-  if [[ -s $STATE_DIR/backups/manifest.tsv ]]; then while IFS=$'\t' read -r path backup _hash _time _module operation; do printf '    - %s (%s)\n' "$path" "$operation"; done < "$STATE_DIR/backups/manifest.tsv"; else printf '    (nenhum)\n'; fi
+  if [[ -n $(rollback_target_files) ]]; then while IFS=$'\t' read -r path backup operation; do printf '    - %s (%s)\n' "$path" "$operation"; done < <(rollback_target_files); else printf '    (nenhum)\n'; fi
   printf '  Pacotes preexistentes preservados:\n'; sed 's/^/    = /' "$STATE_DIR/existing-packages.txt"
 }
 

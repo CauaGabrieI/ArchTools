@@ -9,7 +9,7 @@ LOG_DIR="$PROJECT_DIR/logs"
 RUN_ID=$(date +%F_%H-%M-%S-%N)
 LOG_FILE=""
 DRY_RUN=0; VERBOSE=0; NO_REBOOT=0; ASSUME_YES=0; READ_ONLY_ACTION=0
-DESKTOP=""; PROFILE=""; ACTION="install"
+DESKTOP=""; PROFILE=""; DESKTOP_COMPONENTS_SPEC=""; ACTION="install"
 declare -a PLAN_PACKAGES=() PLAN_OPTIONAL_PACKAGES=() PLAN_SERVICES_ENABLE=() PLAN_SERVICES_CONFIGURED=() PLAN_SERVICES_DISABLE=() PLAN_NOTES=() PLAN_FILES=()
 declare -A HARDWARE=()
 
@@ -29,7 +29,7 @@ trap 'on_error "$LINENO" "$BASH_COMMAND"' ERR
 
 load_modules() {
   local module
-  for module in logger state transaction detect packages backup rollback planner executor validator ui cli modules preflight api; do
+  for module in logger state transaction detect packages backup rollback desktop-components planner executor validator ui cli modules preflight api; do
     # shellcheck source=/dev/null
     source "$PROJECT_DIR/lib/$module.sh"
   done
@@ -73,7 +73,9 @@ run_install_flow() {
   show_hardware
   [[ $ACTION == detect-only ]] && return
   select_interactively_if_needed
+  desktop_components_interactive_select "$DESKTOP"
   build_plan "$DESKTOP" "$PROFILE"
+  desktop_components_plan "$DESKTOP" "${DESKTOP_COMPONENTS_SPEC:-none}"
   local plan_status=0
   validate_plan_pre_execution || plan_status=$?
   show_plan

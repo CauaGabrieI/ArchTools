@@ -95,7 +95,8 @@ after=$([[ -d $root/logs ]] && find "$root/logs" -maxdepth 1 -type f | wc -l || 
 printf '# [multilib]\n' > "$task_tmp/disabled-multilib.conf"
 set +e
 invalid_plan=$(PATH="$root/tests/mock-bin:$PATH" XDG_STATE_HOME="$cli_state" OS_RELEASE_FILE="$root/tests/fixtures/os-release-arch" \
-  PACMAN_CONF="$task_tmp/disabled-multilib.conf" "$root/install.sh" --desktop gnome --profile gaming --dry-run 2>&1)
+  PACMAN_CONF="$task_tmp/disabled-multilib.conf" "$root/install.sh" --desktop gnome --profile gaming \
+  --desktop-components none --dry-run 2>&1)
 invalid_rc=$?
 set -e
 [[ $invalid_rc == 1 && $invalid_plan == *'Plano inválido; nenhuma alteração foi executada.'* ]]
