@@ -29,7 +29,7 @@ trap 'on_error "$LINENO" "$BASH_COMMAND"' ERR
 
 load_modules() {
   local module
-  for module in logger state transaction detect packages backup rollback desktop-components planner executor validator ui cli modules preflight api; do
+  for module in logger state transaction detect packages backup rollback desktop-components doctor planner executor validator ui cli modules preflight api; do
     # shellcheck source=/dev/null
     source "$PROJECT_DIR/lib/$module.sh"
   done

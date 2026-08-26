@@ -86,6 +86,7 @@ Uso: ./archtools <comando> [subcomando] [opções]
 Comandos:
   install [opções]                 Executa o fluxo completo existente
   preflight [--verbose]            Verifica pré-requisitos sem alterar o sistema
+  doctor [--verbose]               Audita sistema e estado sem fazer alterações
   module list                      Lista módulos registrados
   module info <nome>               Mostra metadados de um módulo
   hardware detect [opções]         Detecta e mostra hardware
@@ -106,6 +107,7 @@ archtools_cli_main() {
   case "$command_name" in
     install) main "$@" ;;
     preflight) preflight_run "$@" ;;
+    doctor) doctor_run "$@" ;;
     hardware|diagnostics|drivers)
       subcommand=${1:-}
       [[ -n $subcommand ]] && shift

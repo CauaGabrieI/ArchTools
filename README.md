@@ -131,6 +131,27 @@ Ambientes suportados: GNOME, KDE Plasma, XFCE, Cinnamon e Hyprland. O perfil
 `minimal` não recebe sugestões automáticas. Desktop desconhecido exige
 `--desktop` explícito antes de qualquer instalação.
 
+## Diagnóstico somente leitura
+
+O `doctor` verifica compatibilidade do sistema, comandos necessários, estado,
+permissões, locks, transações, backups, pacotes e serviços gerenciados:
+
+```bash
+./archtools doctor
+./archtools doctor --verbose
+```
+
+O comando não corrige problemas automaticamente, não solicita sudo e não cria
+logs, estado, locks ou transações. Seus exit codes são:
+
+```text
+0 = nenhum FAIL (WARN isolado é permitido)
+1 = pelo menos um FAIL
+2 = opção ou uso inválido
+```
+
+`./archtools diagnostics run` continua disponível para compatibilidade.
+
 ## Configurar um perfil de gaming
 
 ```bash
@@ -162,6 +183,7 @@ Ambientes suportados: GNOME, KDE Plasma, XFCE, Cinnamon e Hyprland. O perfil
 | Comando/opção      | Função                         |
 | ------------------ | ------------------------------ |
 | `./install.sh`     | Executa o fluxo principal      |
+| `./archtools doctor` | Audita sistema e estado sem alterar |
 | `--help`           | Exibe a ajuda                  |
 | `--detect-only`    | Detecta o sistema sem instalar |
 | `--dry-run`        | Simula a operação              |
@@ -523,6 +545,10 @@ O projeto possui testes para componentes como:
 
 Também existem testes de integração e ciclo de vida das transações.
 
+Cada push e pull request executa automaticamente no GitHub Actions a validação
+de sintaxe Bash, whitespace dos commits submetidos e a suíte completa com
+timeout individual por teste.
+
 ```text
 tests/
 ├── fixtures/
@@ -531,6 +557,7 @@ tests/
 ├── test_cli.sh
 ├── test_cpu.sh
 ├── test_dry_run.sh
+├── test_doctor.sh
 ├── test_gpu.sh
 ├── test_modules.sh
 ├── test_network.sh
