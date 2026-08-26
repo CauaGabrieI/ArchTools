@@ -20,7 +20,7 @@ declare -A all_packages=(
 for desktop in gnome kde xfce cinnamon hyprland; do
   state="$task_tmp/$desktop"; mkdir -p "$state"
   no_selection=$(XDG_STATE_HOME="$state" "$root/install.sh" --desktop "$desktop" --profile desktop --dry-run)
-  [[ $no_selection != *"    + ${terminal[$desktop]}"* ]]
+  for package in ${all_packages[$desktop]}; do [[ $no_selection == *"    + $package"* ]]; done
 
   selected=$(XDG_STATE_HOME="$state" "$root/install.sh" --desktop "$desktop" --profile desktop --desktop-components terminal --dry-run)
   [[ $selected == *"    + ${terminal[$desktop]}"* ]]

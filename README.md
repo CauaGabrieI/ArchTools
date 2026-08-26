@@ -88,16 +88,39 @@ Use `--dry-run` para visualizar o que seria executado:
   --desktop gnome
 ```
 
-O desktop core contém apenas a sessão e os serviços essenciais. Terminal,
-navegador, loja, gerenciador de arquivos, editor e compactador são componentes
-opcionais e só entram no plano quando selecionados explicitamente:
+Depois de escolher o desktop, o fluxo interativo oferece três presets:
+
+- `minimal`: somente o núcleo do desktop e seus serviços essenciais;
+- `recommended`: núcleo + terminal, navegador, loja, arquivos, editor e compactador recomendados para o ambiente;
+- `custom`: seleção explícita desses aplicativos.
+
+Os presets também podem ser usados diretamente pela CLI:
+
+```bash
+# Somente o núcleo do KDE Plasma
+./install.sh --usage-profile desktop --desktop kde \
+  --desktop-preset minimal
+
+# KDE Plasma com os seis aplicativos recomendados
+./install.sh --usage-profile desktop --desktop kde \
+  --desktop-preset recommended
+
+# Seleção personalizada
+./install.sh --usage-profile desktop --desktop kde \
+  --desktop-preset custom \
+  --desktop-components terminal,files,editor
+```
+
+`recommended` reutiliza o mesmo registry de componentes específicos por
+desktop; não mantém listas paralelas. A opção legada `--desktop-components`
+continua aceita e, quando usada sem preset, equivale a `custom`:
 
 ```bash
 ./install.sh --desktop gnome --usage-profile desktop \
   --desktop-components terminal,browser,files
 ```
 
-Use `all` para selecionar todas as seis categorias ou `none` para nenhuma:
+Também é possível usar `all` ou `none`:
 
 ```bash
 ./install.sh --desktop kde --usage-profile desktop --desktop-components all
@@ -106,6 +129,12 @@ Use `all` para selecionar todas as seis categorias ou `none` para nenhuma:
 
 `--yes` apenas confirma um plano já selecionado. Ele nunca equivale a
 `--desktop-components all`.
+
+Se outro desktop já estiver instalado, o ArchTools mantém o ambiente existente
+e instala o novo ao lado dele. Um display manager já habilitado não é substituído
+automaticamente. A saída normal mostra um resumo; `--verbose` ou a opção de
+detalhes antes da confirmação exibe os pacotes e notas completos. Cores ANSI só
+são usadas em terminal e podem ser desativadas com `NO_COLOR=1`.
 
 ## Componentes de desktop standalone
 
@@ -198,6 +227,7 @@ alias compatível de `--usage-profile`.
 | `--detect-only`    | Detecta o sistema sem instalar |
 | `--dry-run`        | Simula a operação              |
 | `--desktop <nome>` | Seleciona o ambiente desktop   |
+| `--desktop-preset <nome>` | Seleciona `minimal`, `recommended` ou `custom` |
 | `--desktop-components <lista>` | Seleciona componentes opcionais explicitamente |
 | `--hardware-profile <nome>` | Seleciona `auto`, `desktop`, `notebook`, `server` ou `vm` |
 | `--usage-profile <nome>` | Seleciona `minimal`, `desktop`, `gaming`, `development` ou `server` |

@@ -25,7 +25,7 @@ trap 'rm -rf "$task_tmp"' EXIT
   inventory_save() { order+=(inventory); }
   startup_prepare > "$task_tmp/startup-warn.out"
   output=$(< "$task_tmp/startup-warn.out")
-  [[ $output == *'[WARN] Doctor'* && ${order[*]} == 'doctor detect profile inventory' && $detection_count == 1 ]]
+  [[ $output == *'Doctor: 1 aviso(s); continuando.'* && ${order[*]} == 'doctor detect profile inventory' && $detection_count == 1 ]]
 )
 
 (

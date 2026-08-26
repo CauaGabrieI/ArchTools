@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 archtools_reset_plan() {
-  PLAN_PACKAGES=(); PLAN_OPTIONAL_PACKAGES=(); PLAN_SERVICES_ENABLE=(); PLAN_SERVICES_CONFIGURED=(); PLAN_SERVICES_DISABLE=(); PLAN_NOTES=(); PLAN_FILES=()
+  PLAN_PACKAGES=(); PLAN_OPTIONAL_PACKAGES=(); PLAN_SERVICES_ENABLE=(); PLAN_SERVICES_CONFIGURED=(); PLAN_SERVICES_DISABLE=(); PLAN_NOTES=(); PLAN_WARNINGS=(); PLAN_FILES=()
 }
 
 archtools_detect_module() {
@@ -99,6 +99,7 @@ Comandos:
 
 Opções de instalação: --hardware-profile <perfil>  --usage-profile <perfil>
   --profile <perfil> (alias legado)  --desktop <ambiente>
+  --desktop-preset minimal|recommended|custom  --desktop-components <lista>
 Opções gerais: --dry-run  --yes  --verbose  --help
 EOF
 }

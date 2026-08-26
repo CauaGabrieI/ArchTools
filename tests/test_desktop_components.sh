@@ -82,16 +82,16 @@ if env -u XDG_CURRENT_DESKTOP -u DESKTOP_SESSION PATH="$root/tests/mock-bin:$PAT
 
 if command -v script >/dev/null 2>&1; then
   interactive=$(printf 'terminal\n' | script -qec "env PATH='$root/tests/mock-bin':\$PATH XDG_STATE_HOME='$cli_state' OS_RELEASE_FILE='$root/tests/fixtures/os-release-arch' '$root/install.sh' --hardware-profile auto --desktop gnome --profile desktop --dry-run" /dev/null)
-  [[ $interactive == *'Componentes ['* && $interactive == *'gnome-console'* ]]
+  [[ $interactive == *'Como deseja instalar GNOME?'* && $interactive == *'gnome-console'* ]]
 fi
 
 if PATH="$root/tests/mock-bin:$PATH" XDG_STATE_HOME="$cli_state" OS_RELEASE_FILE="$root/tests/fixtures/os-release-arch" \
   "$root/archtools" desktop-apps install invalid --desktop gnome --dry-run >/dev/null 2>&1; then exit 1; fi
 [[ ! -e $cli_state/arch-smart-postinstall ]]
 
-# --yes confirms only an explicit selection; it never selects suggestions.
+# --yes only confirms the resolved plan; it does not override an explicit minimal preset.
 yes_output=$(PATH="$root/tests/mock-bin:$PATH" XDG_STATE_HOME="$cli_state" OS_RELEASE_FILE="$root/tests/fixtures/os-release-arch" \
-  "$root/install.sh" --desktop gnome --profile desktop --yes --dry-run)
+  "$root/install.sh" --desktop gnome --profile desktop --desktop-preset minimal --yes --dry-run)
 for optional in gnome-console epiphany gnome-software gnome-text-editor file-roller; do
   [[ $yes_output != *"    + $optional"* ]]
 done

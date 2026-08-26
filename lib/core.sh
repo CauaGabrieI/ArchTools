@@ -9,8 +9,9 @@ LOG_DIR="$PROJECT_DIR/logs"
 RUN_ID=$(date +%F_%H-%M-%S-%N)
 LOG_FILE=""
 DRY_RUN=0; VERBOSE=0; NO_REBOOT=0; ASSUME_YES=0; READ_ONLY_ACTION=0
-DESKTOP=""; PROFILE=""; USAGE_PROFILE=""; HARDWARE_PROFILE="auto"; HARDWARE_PROFILE_EXPLICIT=0; DESKTOP_COMPONENTS_SPEC=""; ACTION="install"
-declare -a PLAN_PACKAGES=() PLAN_OPTIONAL_PACKAGES=() PLAN_SERVICES_ENABLE=() PLAN_SERVICES_CONFIGURED=() PLAN_SERVICES_DISABLE=() PLAN_NOTES=() PLAN_FILES=()
+DESKTOP=""; PROFILE=""; USAGE_PROFILE=""; HARDWARE_PROFILE="auto"; HARDWARE_PROFILE_EXPLICIT=0
+DESKTOP_COMPONENTS_SPEC=""; DESKTOP_COMPONENTS_EXPLICIT=0; DESKTOP_PRESET=""; DESKTOP_PRESET_EXPLICIT=0; ACTION="install"
+declare -a PLAN_PACKAGES=() PLAN_OPTIONAL_PACKAGES=() PLAN_SERVICES_ENABLE=() PLAN_SERVICES_CONFIGURED=() PLAN_SERVICES_DISABLE=() PLAN_NOTES=() PLAN_WARNINGS=() PLAN_FILES=()
 declare -A HARDWARE=()
 
 on_error() {
@@ -72,22 +73,23 @@ main() {
 }
 
 startup_health_check() {
-  printf 'ArchTools startup\n'
+  ui_section 'Sistema'
   if doctor_run >/dev/null; then
-    if (( DOCTOR_WARN )); then printf '[WARN] Doctor: %d aviso(s); continuando.\n' "$DOCTOR_WARN"
-    else printf '[OK] Doctor\n'; fi
+    if (( DOCTOR_WARN )); then ui_warn "Doctor: $DOCTOR_WARN aviso(s); continuando."
+    else ui_ok 'Verificação do sistema'; fi
     return 0
   fi
-  printf '[FAIL] ArchTools health check\nExecute:\n  ./archtools doctor --verbose\n' >&2
+  ui_error 'Verificação de saúde do ArchTools'
+  printf 'Execute:\n  ./archtools doctor --verbose\n' >&2
   return 1
 }
 
 startup_prepare() {
   startup_health_check || return 1
   archtools_detect_module hardware
-  printf '[OK] Hardware detected\n'
+  ui_ok 'Hardware detectado'
   detect_hardware_profile
-  printf '[OK] Machine profile: %s\n' "$HARDWARE_PROFILE_DETECTED"
+  ui_ok "Perfil detectado: $(ui_title_case "$HARDWARE_PROFILE_DETECTED")"
   (( DRY_RUN )) || inventory_save
 }
 
@@ -95,10 +97,11 @@ run_install_flow() {
   banner
   if [[ $ACTION == detect-only ]]; then archtools_detect_module hardware; show_hardware; return; fi
   startup_prepare || return 1
-  show_hardware
+  if (( VERBOSE )); then show_hardware; else show_hardware_summary; fi
   select_interactively_if_needed
   init_logger
-  if [[ $USAGE_PROFILE != minimal && $USAGE_PROFILE != server ]]; then desktop_components_interactive_select "$DESKTOP"; fi
+  desktop_preset_interactive_select "$DESKTOP"
+  desktop_preset_resolve
   build_plan "$DESKTOP" "$USAGE_PROFILE"
   desktop_components_plan "$DESKTOP" "${DESKTOP_COMPONENTS_SPEC:-none}"
   local plan_status=0
