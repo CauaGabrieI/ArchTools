@@ -626,6 +626,12 @@ ArchTools/
 
 # 🧪 Testes
 
+Para testar em um Arch Linux descartável no CachyOS com `systemd-nspawn`, use
+`./tools/testing/nspawn.sh setup` e depois `./tools/testing/nspawn.sh test`.
+O checkout é montado somente para leitura e os testes reais usam uma cópia
+interna do projeto. Comandos de reset, integração, rollback e limitações de
+hardware estão em [Testes com systemd-nspawn](docs/testing-nspawn.md).
+
 O projeto possui testes para componentes como:
 
 * CLI

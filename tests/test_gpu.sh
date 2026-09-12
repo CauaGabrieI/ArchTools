@@ -2,6 +2,7 @@
 set -Eeuo pipefail
 root=$(cd "$(dirname "$0")/.." && pwd); PROJECT_DIR=$root
 source "$root/lib/core.sh"; load_modules
+systemd-detect-virt() { return 1; }
 run_case() {
   local name=$1 description=$2 expected_amd=$3 expected_intel=$4 expected_nvidia=$5 expected_vendor=$6
   declare -g SAMPLE_GPU="$description"; declare -gA HARDWARE=()
@@ -22,4 +23,12 @@ run_case amd_intel $'00:02.0 VGA compatible controller: Intel Graphics\n01:00.0 
 run_case virtio '00:02.0 VGA compatible controller: Red Hat, Inc. Virtio GPU' 0 0 0 virtio
 run_case unknown '00:02.0 VGA compatible controller: Example Devices Foo' 0 0 0 unknown
 run_case none '' 0 0 0 unknown
+# nspawn may expose host PCI devices through /sys; do not plan their drivers.
+systemd-detect-virt() { [[ ${1:-} == --container ]] && printf 'systemd-nspawn\n'; }
+SAMPLE_GPU='01:00.0 VGA compatible controller: NVIDIA Corporation GPU'
+declare -gA HARDWARE=()
+detect_gpu
+[[ ${HARDWARE[gpus]} == 'não verificável em container' && ${HARDWARE[gpu_nvidia]} == 0 ]]
+DESKTOP=minimal; PROFILE=minimal; build_plan "$DESKTOP" "$PROFILE"
+[[ " ${PLAN_PACKAGES[*]} " != *' nvidia-utils '* ]]
 echo 'test_gpu: ok'

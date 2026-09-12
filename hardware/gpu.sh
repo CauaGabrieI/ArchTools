@@ -1,5 +1,13 @@
 #!/usr/bin/env bash
 detect_gpu() {
+  # /sys can expose the host PCI bus in nspawn; it is not a usable guest GPU.
+  if command -v systemd-detect-virt >/dev/null 2>&1 &&
+    [[ $(systemd-detect-virt --container 2>/dev/null || true) == systemd-nspawn ]]; then
+    HARDWARE[gpus]='não verificável em container'
+    HARDWARE[gpu_amd]=0; HARDWARE[gpu_intel]=0; HARDWARE[gpu_nvidia]=0
+    HARDWARE[gpu_vendor]=unknown; HARDWARE[opengl]=''; HARDWARE[vulkan]=''
+    return 0
+  fi
   local lines=''; cmd lspci && lines=$(lspci -nnk 2>/dev/null | grep -Ei 'VGA compatible|3D controller|Display controller' || true)
   HARDWARE[gpus]=$(sed ':a;N;$!ba;s/\n/; /g' <<<"$lines"); [[ -n ${HARDWARE[gpus]} ]] || HARDWARE[gpus]="não detectada (lspci indisponível)"
   grep -Eqi 'Advanced Micro Devices|AMD/ATI|(^|[^[:alnum:]])AMD([^[:alnum:]]|$)' <<<"$lines" && HARDWARE[gpu_amd]=1 || HARDWARE[gpu_amd]=0

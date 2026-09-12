@@ -101,7 +101,12 @@ set +e; incomplete_output=$("${doctor_env[@]}" XDG_STATE_HOME="$incomplete_home"
 
 unreadable_home="$task_tmp/unreadable"; make_state "$unreadable_home"; unreadable="$unreadable_home/arch-smart-postinstall/transactions.tsv"; chmod 000 "$unreadable"
 set +e; unreadable_output=$("${doctor_env[@]}" XDG_STATE_HOME="$unreadable_home" "$root/archtools" doctor); unreadable_rc=$?; set -e
-[[ $unreadable_rc == 1 && $unreadable_output == *'Arquivo de estado ilegível:'* && $unreadable_output == *'Resumo:'* && $unreadable_output == *'Doctor: ISSUES FOUND'* ]]
+if (( EUID == 0 )); then
+  # Root can read mode 000 files; the doctor must still reject their mode.
+  [[ $unreadable_rc == 1 && $unreadable_output == *'Arquivo de controle com permissão 0; esperado 600'* && $unreadable_output == *'Doctor: ISSUES FOUND'* ]]
+else
+  [[ $unreadable_rc == 1 && $unreadable_output == *'Arquivo de estado ilegível:'* && $unreadable_output == *'Resumo:'* && $unreadable_output == *'Doctor: ISSUES FOUND'* ]]
+fi
 [[ $(stat -c '%a' "$unreadable") == 0 ]]
 chmod 600 "$unreadable"
 
