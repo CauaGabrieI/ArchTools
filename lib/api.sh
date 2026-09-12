@@ -142,6 +142,7 @@ archtools_cli_main() {
 
 archtools_tool_main() {
   local module=$1 choice=""; shift
+  transaction_test_failpoint_validate || return 2
   if [[ $module == desktop ]]; then choice=${1:-}; shift || true; fi
   while (($#)); do
     case "$1" in

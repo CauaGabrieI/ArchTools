@@ -39,6 +39,7 @@ enable_service_safe() {
     fi
     state_add_unique "$STATE_DIR/services.txt" "$s|$old|enabled" || return 1
     log INFO "[OK] Habilitado: $s"
+    if [[ ${TRANSACTION_STATUS:-} == active ]]; then transaction_test_failpoint after_service_enable; fi
   else
     log ERROR "Falha ao confirmar serviço habilitado: $s"
     if declare -F transaction_restore_service >/dev/null 2>&1; then transaction_restore_service "$s" "$old" || true; fi

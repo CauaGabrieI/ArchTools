@@ -94,6 +94,7 @@ startup_prepare() {
 }
 
 run_install_flow() {
+  transaction_test_failpoint_validate || return 2
   banner
   if [[ $ACTION == detect-only ]]; then archtools_detect_module hardware; show_hardware; return; fi
   startup_prepare || return 1

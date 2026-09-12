@@ -42,7 +42,7 @@ Uso: ./tools/testing/nspawn.sh <comando> [opções]
   start | stop          Inicia/para somente archtools-test
   shell [--writable]    Shell no container; --writable usa cópia interna
   run [--writable] '<comando>'
-  test [quick|integration [minimal|desktop|development|server|gaming-dry-run]|idempotency|rollback]
+  test [quick|integration [minimal|desktop|development|server|gaming-dry-run]|idempotency|rollback|failure [begin|package|service|commit|files]]
   reset                 Restaura archtools-test a partir da base
   destroy               Remove somente os dois ambientes identificados
   status                Mostra host, filesystem e estado dos ambientes
@@ -427,18 +427,37 @@ do_shell() {
   fi
 }
 do_test() {
-  local mode=${1:-quick} scenario=${2:-minimal} rc=0
+  local mode=${1:-quick} scenario=${2:-} rc=0 test_scenario
   case $mode in
-    integration) [[ $scenario =~ ^(minimal|desktop|development|server|gaming-dry-run)$ ]] || fail "Cenário inválido: $scenario" ;;
-    quick|idempotency|rollback) ;;
-    failure) fail 'test failure ainda não implementado; nenhum fault injection é executado.' ;;
+    integration) scenario=${scenario:-minimal}; [[ $scenario =~ ^(minimal|desktop|development|server|gaming-dry-run)$ ]] || fail "Cenário inválido: $scenario" ;;
+    failure) [[ -z $scenario || $scenario =~ ^(begin|package|service|commit|files)$ ]] || fail "Cenário inválido: $scenario" ;;
+    quick|idempotency|rollback) [[ -z $scenario ]] || fail "Cenário inesperado: $scenario" ;;
     *) fail "Modo de teste inválido: $mode" ;;
   esac
   if (( DRY_RUN )); then
-    if [[ $mode != quick ]]; then reset; fi
-    plan_note "Validar $TEST, gravar marcador somente nele e iniciar $UNIT se necessário."
-    plan_note "Executar dentro de archtools-test: ./tools/testing/guest.sh $mode $scenario"
+    if [[ $mode == failure ]]; then
+      for test_scenario in ${scenario:-begin package service commit files}; do
+        reset
+        plan_note "Validar $TEST e executar no guest: ./tools/testing/guest.sh failure $test_scenario"
+      done
+      reset
+    else
+      if [[ $mode != quick ]]; then reset; fi
+      plan_note "Validar $TEST, gravar marcador somente nele e iniciar $UNIT se necessário."
+      plan_note "Executar dentro de archtools-test: ./tools/testing/guest.sh $mode $scenario"
+    fi
     return
+  fi
+  if [[ $mode == failure ]]; then
+    for test_scenario in ${scenario:-begin package service commit files}; do
+      reset
+      prepare_guest_marker
+      guest "./tools/testing/guest.sh failure $test_scenario" || { info "FAIL: failure $test_scenario"; return 1; }
+      info "PASS: failure $test_scenario"
+    done
+    reset
+    info 'PASS: failure (ambiente limpo e parado)'
+    return 0
   fi
   if [[ $mode != quick ]]; then reset; fi
   prepare_guest_marker
@@ -483,8 +502,8 @@ main() {
       quick|integration|idempotency|rollback|failure)
         [[ $action == test && -z $mode ]] || fail "Argumento inesperado: $1"
         mode=$1;;
-      minimal|desktop|development|server|gaming-dry-run)
-        [[ $action == test && $mode == integration && -z $scenario ]] || fail "Argumento inesperado: $1"
+      minimal|desktop|development|server|gaming-dry-run|begin|package|service|commit|files)
+        [[ $action == test && -z $scenario && ( $mode == integration || $mode == failure ) ]] || fail "Argumento inesperado: $1"
         scenario=$1;;
       *)
         if [[ $action == run && -z $command ]]; then command=$1
@@ -501,7 +520,7 @@ main() {
     stop) if (( DRY_RUN )); then plan_note "Se $UNIT estiver ativo, validar origem e pará-lo."; as_root systemctl stop "$UNIT";
       else stop; fi;;
     shell) do_shell;; run) do_run "$command";;
-    test) do_test "${mode:-quick}" "${scenario:-minimal}";;
+    test) do_test "${mode:-quick}" "$scenario";;
     reset) reset;; destroy) destroy;; status) status;;
   esac
 }

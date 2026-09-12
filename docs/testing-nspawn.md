@@ -61,7 +61,20 @@ Os testes reais usam `--yes` apenas após selecionar explicitamente o perfil e d
 ./tools/testing/nspawn.sh test rollback
 ```
 
-Ambos começam de uma cópia limpa. Idempotência instala o perfil minimal duas vezes e compara pacotes instalados, arquivos/serviços gerenciados, metadados dos arquivos de estado e backups, e eventos da segunda transação. O segundo run deve ter zero alterações registradas. Rollback registra os pacotes e o enablement de NetworkManager antes da instalação, executa o rollback do ArchTools e verifica pacotes gerenciados, estado, serviço, transação e `list-changes`. Caches do pacman, dependências não gerenciadas e journals são excluídos da comparação; o histórico é validado por resultado, sem comparação byte a byte. `test failure` reserva um ponto de extensão, mas retorna erro claro sem injetar falhas.
+Ambos começam de uma cópia limpa. Idempotência instala o perfil minimal duas vezes e compara pacotes instalados, arquivos/serviços gerenciados, metadados dos arquivos de estado e backups, e eventos da segunda transação. O segundo run deve ter zero alterações registradas. Rollback registra os pacotes e o enablement de NetworkManager antes da instalação, executa o rollback do ArchTools e verifica pacotes gerenciados, estado, serviço, transação e `list-changes`. Caches do pacman, dependências não gerenciadas e journals são excluídos da comparação; o histórico é validado por resultado, sem comparação byte a byte.
+
+## Failure injection / transaction recovery
+
+```bash
+./tools/testing/nspawn.sh test failure
+./tools/testing/nspawn.sh test failure files  # somente o cenário com arquivo, pacote e serviço
+```
+
+`test failure` reseta **somente** `archtools-test` antes de cada cenário e ao terminar. Ele usa a cópia gravável `/root/ArchTools-work`; a base permanece somente leitura. A variável interna `ARCHTOOLS_TEST_FAILPOINT` aceita apenas `after_transaction_begin`, `after_package_install`, `after_service_enable` e `before_commit`. Ela fica inativa por padrão e é recusada fora do guest nspawn marcado como teste. No ponto selecionado, o processo sai com código 86, deixando os metadados e o lock da transação incompleta para exercitar a recuperação real. Não é uma opção pública do ArchTools.
+
+Os cenários `begin`, `package`, `service` e `commit` usam o perfil minimal. O cenário `files` usa uma fixture dentro do guest, o pacote `nano` e `fstrim.timer` para verificar arquivo, backup, pacote, serviço, provenance e metadados antes do commit. Cada cenário exige que o doctor detecte a transação incompleta, executa a recuperação pelo ledger da transação, confere o estado restaurado e a liberação do lock, então repete a operação normalmente e faz rollback. Sem alterações, a transação órfã termina como `aborted`; com alterações revertidas, termina como `rolled_back`. O teste também verifica que um backup reutilizado continua registrando a mudança da nova transação.
+
+As saídas controladas validam estes pontos específicos, não uma perda de energia, `SIGKILL` arbitrário ou corrupção do pacman. A recuperação só reverte recursos registrados como gerenciados pela transação. Se algum cenário falhar, o teste preserva `archtools-test` para inspeção; após PASS, ele deixa o ambiente limpo e parado.
 
 ## Limites do container
 

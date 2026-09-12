@@ -71,7 +71,17 @@ case $(bash -c 'source "$1"; backend' _ "$script") in
   *) printf 'Unknown filesystem backend in reset plan\n' >&2; exit 1;;
 esac
 
-for args in 'invalid' 'test bogus' 'test failure' 'test integration bogus' 'reset --writable' 'reset -- bogus' 'run'; do
+failure_plan=$(bash "$script" test failure --dry-run)
+[[ $failure_plan == *'./tools/testing/guest.sh failure begin'* &&
+   $failure_plan == *'./tools/testing/guest.sh failure package'* &&
+   $failure_plan == *'./tools/testing/guest.sh failure service'* &&
+   $failure_plan == *'./tools/testing/guest.sh failure commit'* &&
+   $failure_plan == *'./tools/testing/guest.sh failure files'* ]]
+files_plan=$(bash "$script" test failure files --dry-run)
+[[ $files_plan == *'./tools/testing/guest.sh failure files'* &&
+   $files_plan != *'./tools/testing/guest.sh failure begin'* ]]
+
+for args in 'invalid' 'test bogus' 'test integration bogus' 'test failure bogus' 'reset --writable' 'reset -- bogus' 'run'; do
   # Split only fixed test literals; never pass untrusted text through eval.
   read -r -a words <<< "$args"
   if bash "$script" "${words[@]}" >/dev/null 2>&1; then

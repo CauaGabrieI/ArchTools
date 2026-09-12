@@ -40,7 +40,8 @@ printf 'orphan\told-run\tactive\tinstall\tdate\n' >> "$STATE_DIR/transactions.ts
 : > "$STATE_DIR/transactions/orphan.tsv"
 printf '99999999\n' > "$STATE_DIR/transactions/orphan.pid"
 begin_transaction install
-awk -F '\t' '$1=="orphan" && $3=="rolled_back" {found=1} END {exit !found}' "$STATE_DIR/transactions.tsv"
+awk -F '\t' '$1=="orphan" && $2=="old-run" && $3=="aborted" && $4=="install" {found=1} END {exit !found}' "$STATE_DIR/transactions.tsv"
+! grep -q $'\trollback\t' "$STATE_DIR/transactions/orphan.tsv"
 abort_transaction cleanup
 rollback_transaction
 

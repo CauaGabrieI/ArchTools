@@ -6,7 +6,17 @@ backup_file() {
   if [[ -e $target ]]; then
     hash=$(sha256sum "$target" | awk '{print $1}'); operation=modified
   else hash=absent; operation=created; fi
-  if awk -F '\t' -v path="$absolute" -v prior_hash="$hash" '$1 == path && $3 == prior_hash { found=1 } END { exit !found }' "$manifest" 2>/dev/null; then log INFO "[SKIP] Backup already exists: $absolute"; return 0; fi
+  if awk -F '\t' -v path="$absolute" -v prior_hash="$hash" '$1 == path && $3 == prior_hash { found=1 } END { exit !found }' "$manifest" 2>/dev/null; then
+    backup=$(awk -F '\t' -v path="$absolute" -v prior_hash="$hash" '$1 == path && $3 == prior_hash {print $2; exit}' "$manifest")
+    [[ $operation != modified || -r $backup ]] || { log ERROR "Backup existente ilegível: $backup"; return 1; }
+    state_add_unique "$STATE_DIR/modified-files.txt" "$absolute" || return 1
+    if [[ ${TRANSACTION_STATUS:-} == active ]] && declare -F record_change >/dev/null 2>&1 &&
+      ! awk -F '\t' -v path="$absolute" '$6=="change" && $7=="file" && $8==path {found=1} END {exit !found}' "$(transaction_event_file)"; then
+      record_change "$module" file "$absolute" "$backup" "$operation" yes || return 1
+    fi
+    log INFO "[SKIP] Backup already exists: $absolute"
+    return 0
+  fi
   id=$(printf '%s\0%s\0%s' "$absolute" "$hash" "$operation" | sha256sum | awk '{print $1}'); dir="$STATE_DIR/backups/$id"; backup="$dir/original"
   mkdir -p "$dir"
   if [[ $operation == modified ]]; then cp -a -- "$target" "$backup"; else : > "$backup.created"; fi

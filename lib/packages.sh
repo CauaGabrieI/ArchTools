@@ -46,7 +46,8 @@ install_packages() {
       record_managed_package_provenance "$p" || return 1
     fi
   done
-  return "$rc"
+  (( rc == 0 )) || return "$rc"
+  if [[ ${TRANSACTION_STATUS:-} == active ]]; then transaction_test_failpoint after_package_install; fi
 }
 remove_package() {
   local p=$1

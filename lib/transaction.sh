@@ -10,6 +10,33 @@ TRANSACTION_STATUS=""
 transaction_fail() { printf '[TRANSACTION ERROR] %s\n' "$1" >&2; return 1; }
 transaction_require_active() { [[ ${TRANSACTION_STATUS:-} == active && -n ${TRANSACTION_ID:-} ]] || transaction_fail "Nenhuma transação active está aberta."; }
 
+# A deliberate process exit in the disposable nspawn guest leaves the existing
+# ledger and lock intact so the real orphan recovery path can be exercised.
+transaction_test_guest() {
+  [[ -r /etc/archtools-nspawn-test && $(< /etc/archtools-nspawn-test) == archtools-nspawn-v1:test ]] &&
+    command -v systemd-detect-virt >/dev/null 2>&1 &&
+    [[ $(systemd-detect-virt --container 2>/dev/null) == systemd-nspawn ]] &&
+    [[ -d /run/systemd/system ]]
+}
+
+transaction_test_failpoint_validate() {
+  [[ -n ${ARCHTOOLS_TEST_FAILPOINT:-} ]] || return 0
+  case $ARCHTOOLS_TEST_FAILPOINT in
+    after_transaction_begin|after_package_install|after_service_enable|before_commit) ;;
+    *) transaction_fail "Failpoint de teste desconhecido: $ARCHTOOLS_TEST_FAILPOINT"; return 2;;
+  esac
+  transaction_test_guest || { transaction_fail 'Fault injection só é permitida no guest archtools-test.'; return 2; }
+}
+
+transaction_test_failpoint() {
+  local point=$1
+  [[ -n ${ARCHTOOLS_TEST_FAILPOINT:-} ]] || return 0
+  transaction_test_failpoint_validate || return 2
+  [[ $ARCHTOOLS_TEST_FAILPOINT == "$point" ]] || return 0
+  printf '[TEST FAILPOINT] %s: saída controlada antes do commit; transação preservada para recovery.\n' "$point" >&2
+  exit 86
+}
+
 transaction_validate_field() {
   local field=$1 value=$2
   [[ -n $value ]] || { transaction_fail "Campo vazio: $field"; return 1; }
@@ -36,20 +63,34 @@ transaction_find_active() {
 }
 
 transaction_recover_orphans() {
-  local id owner saved_id=${TRANSACTION_ID:-} saved_status=${TRANSACTION_STATUS:-} saved_module=${TRANSACTION_MODULE:-}
+  local id owner event_file original_run original_module rc=0
+  local saved_run=$RUN_ID saved_id=${TRANSACTION_ID:-} saved_status=${TRANSACTION_STATUS:-} saved_module=${TRANSACTION_MODULE:-}
   while IFS= read -r id; do
     [[ -n $id ]] || continue
     owner=""
     [[ -r $STATE_DIR/transactions/$id.pid ]] && read -r owner < "$STATE_DIR/transactions/$id.pid"
     if [[ ! $owner =~ ^[0-9]+$ ]] || ! kill -0 "$owner" 2>/dev/null; then
-      TRANSACTION_ID=$id; TRANSACTION_STATUS=aborted; TRANSACTION_MODULE=recovery
-      printf '%s\t%s\taborted\trecovery\t%s\n' "$id" "$RUN_ID" "$(date -Is)" >> "$STATE_DIR/transactions.tsv"
-      rm -f -- "$STATE_DIR/transactions/$id.pid"
-      rollback_transaction || return 1
-      acquire_state_lock || return 1
+      event_file="$STATE_DIR/transactions/$id.tsv"
+      if [[ ! -r $event_file ]] || ! awk -F '\t' 'NF && NF!=11 {bad=1} END {exit bad}' "$event_file"; then
+        transaction_fail "Event file inválido na transação órfã: $id"; rc=1; break
+      fi
+      original_run=$(awk -F '\t' -v id="$id" '$1==id && $3=="active" {print $2; exit}' "$STATE_DIR/transactions.tsv")
+      original_module=$(awk -F '\t' -v id="$id" '$1==id && $3=="active" {print $4; exit}' "$STATE_DIR/transactions.tsv")
+      [[ -n $original_run && -n $original_module ]] || { transaction_fail "Metadados inválidos na transação órfã: $id"; rc=1; break; }
+      RUN_ID=$original_run; TRANSACTION_ID=$id; TRANSACTION_STATUS=active; TRANSACTION_MODULE=$original_module
+      if awk -F '\t' '$6=="change" {found=1} END {exit !found}' "$event_file"; then
+        rollback_transaction || { rc=1; break; }
+        acquire_state_lock || { rc=1; break; }
+      else
+        transaction_write_event status transaction status active aborted yes || { rc=1; break; }
+        transaction_set_status aborted || { rc=1; break; }
+        save_run_result aborted || { rc=1; break; }
+        rm -f -- "$STATE_DIR/transactions/$id.pid" || { rc=1; break; }
+      fi
     fi
   done < <(transaction_find_active)
-  TRANSACTION_ID=$saved_id; TRANSACTION_STATUS=$saved_status; TRANSACTION_MODULE=$saved_module
+  RUN_ID=$saved_run; TRANSACTION_ID=$saved_id; TRANSACTION_STATUS=$saved_status; TRANSACTION_MODULE=$saved_module
+  return "$rc"
 }
 
 transaction_generate_id() {
@@ -63,6 +104,7 @@ transaction_generate_id() {
 
 begin_transaction() {
   local module=${1:-unknown} active
+  transaction_test_failpoint_validate || return 2
   [[ -n ${STATE_DIR:-} && -n ${RUN_ID:-} ]] || transaction_fail "STATE_DIR e RUN_ID devem estar definidos."
   transaction_validate_field RUN_ID "$RUN_ID" || return
   [[ $module =~ ^[a-zA-Z0-9_.:-]+$ ]] || transaction_fail "Módulo de transação inválido: $module"
@@ -70,7 +112,7 @@ begin_transaction() {
   [[ ${TRANSACTION_STATUS:-} != active ]] || { transaction_fail "Já existe uma transação ativa: $TRANSACTION_ID"; return 1; }
   init_state
   acquire_state_lock || return 1
-  transaction_recover_orphans
+  transaction_recover_orphans || { release_state_lock; return 1; }
   active=$(transaction_find_active)
   [[ -z $active ]] || { release_state_lock; transaction_fail "Já existe uma transação ativa: $active"; return 1; }
   transaction_generate_id
@@ -78,6 +120,7 @@ begin_transaction() {
   printf '%s\t%s\tactive\t%s\t%s\n' "$TRANSACTION_ID" "$RUN_ID" "$module" "$(date -Is)" >> "$STATE_DIR/transactions.tsv"
   : > "$(transaction_event_file)"; chmod 600 "$(transaction_event_file)"
   printf '%s\n' "${BASHPID:-$$}" > "$STATE_DIR/transactions/$TRANSACTION_ID.pid"; chmod 600 "$STATE_DIR/transactions/$TRANSACTION_ID.pid"
+  transaction_test_failpoint after_transaction_begin
 }
 
 record_change() {
@@ -93,6 +136,7 @@ record_change() {
 commit_transaction() {
   transaction_require_active || return
   if (( ${DRY_RUN:-0} )); then TRANSACTION_STATUS=committed; return 0; fi
+  transaction_test_failpoint before_commit
   save_run_result committed || return 1
   transaction_write_event status transaction status active committed yes
   transaction_set_status committed || return 1
