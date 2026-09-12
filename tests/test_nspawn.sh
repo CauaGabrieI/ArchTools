@@ -64,7 +64,12 @@ copy_plan=$(create_test)
 [[ $copy_plan != *'btrfs subvolume snapshot'* ]]
 
 reset_plan=$(bash "$script" reset --dry-run)
-[[ $reset_plan == *"$BASE"* && $reset_plan == *"$TEST"* && $reset_plan == *'btrfs subvolume snapshot'* ]]
+[[ $reset_plan == *"$BASE"* && $reset_plan == *"$TEST"* ]]
+case $(bash -c 'source "$1"; backend' _ "$script") in
+  btrfs-snapshot) [[ $reset_plan == *'btrfs subvolume snapshot'* ]];;
+  reflink-auto/copy) [[ $reset_plan == *'cp -a --reflink=auto'* ]];;
+  *) printf 'Unknown filesystem backend in reset plan\n' >&2; exit 1;;
+esac
 
 for args in 'invalid' 'test bogus' 'test failure' 'test integration bogus' 'reset --writable' 'reset -- bogus' 'run'; do
   # Split only fixed test literals; never pass untrusted text through eval.
